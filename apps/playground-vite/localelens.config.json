@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "framework": "vite",
+  "provider": "i18next",
+  "defaultNamespace": "common",
+  "sourceLocale": "en",
+  "sourceRoots": ["src"],
+  "workspaces": [
+    { "id": "app", "root": "src/locales", "pattern": "{locale}/{ns}.json" },
+    { "id": "auth", "root": "src/features/auth/locales", "pattern": "{locale}.json", "namespace": "auth", "routes": ["src/features/auth/**"] }
+  ],
+  "devOrigins": ["http://localhost:5173"]
+}

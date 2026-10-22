@@ -1,0 +1,13 @@
+node_modules
+dist
+.localelens
+*.log
+test-results
+.tmp
+.keys
+packages/extension/dist
+packages/extension/*.zip
+apps/.e2e
+test-results
+packages/*/dist
+apps/.demo

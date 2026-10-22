@@ -1,0 +1,38 @@
+{
+  "name": "localelens",
+  "version": "0.5.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "src/index.ts",
+  "dependencies": {
+    "@babel/parser": "^8.0.7",
+    "@babel/traverse": "^8.0.7",
+    "@babel/types": "^8.0.6",
+    "magic-string": "^1.4.3",
+    "jsonc-parser": "^3.3.1",
+    "exceljs": "^4.4.0",
+    "fflate": "^0.8.3",
+    "zod": "^4.6.7"
+  },
+  "bin": {
+    "localelens": "dist/bin.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22.18"
+  },
+  "devDependencies": {
+    "@localelens/core": "workspace:*",
+    "@localelens/dev-agent": "workspace:*",
+    "@localelens/ast-engine": "workspace:*",
+    "@localelens/locale-registry": "workspace:*",
+    "@localelens/translation-excel": "workspace:*"
+  },
+  "license": "UNLICENSED",
+  "publishConfig": {
+    "access": "restricted"
+  },
+  "description": "LocaleLens CLI: visual i18n for React/Next/Vite (internal)"
+}

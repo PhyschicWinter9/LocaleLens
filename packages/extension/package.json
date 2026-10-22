@@ -1,0 +1,13 @@
+{
+  "name": "@localelens/extension",
+  "version": "0.5.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "@localelens/core": "workspace:*"
+  }
+}

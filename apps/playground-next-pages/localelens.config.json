@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "framework": "next-pages",
+  "provider": "i18next",
+  "defaultNamespace": "common",
+  "sourceLocale": "en",
+  "sourceRoots": [
+    "pages"
+  ],
+  "workspaces": [
+    {
+      "id": "app",
+      "root": "locales",
+      "pattern": "{locale}/{ns}.json"
+    }
+  ],
+  "devOrigins": [
+    "http://localhost:3000"
+  ]
+}

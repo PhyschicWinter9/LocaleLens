@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LocaleLens</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="popup">
+  <header class="pop-head">
+    <img src="icons/48.png" width="24" height="24" alt="">
+    <strong>LocaleLens</strong>
+    <span class="grow"></span>
+    <span id="state" class="pill">…</span>
+  </header>
+
+  <section id="info" class="kv" aria-live="polite"></section>
+
+  <form id="connect" class="stack" autocomplete="off">
+    <label>Agent URL
+      <input id="url" class="mono" value="http://127.0.0.1:4378" spellcheck="false">
+    </label>
+    <label id="tokenRow">Session token
+      <input id="token" class="mono" type="password" placeholder="ll_… (printed by `localelens dev`)" spellcheck="false">
+    </label>
+    <div class="row">
+      <button id="connectBtn" class="primary" type="submit">Connect</button>
+      <button id="reconnectBtn" type="button">Reconnect</button>
+      <button id="disconnectBtn" type="button">Disconnect</button>
+    </div>
+  </form>
+
+  <div id="error" class="alert err" hidden role="alert"></div>
+  <div id="siteRow" class="alert warn" hidden>
+    <span id="siteMsg"></span>
+    <button id="siteBtn" type="button">Enable on this site</button>
+  </div>
+
+  <section class="hint">
+    <b>Next:</b> open your app, press <kbd>F12</kbd>, choose the <b>LocaleLens</b> tab, click <b>Inspect Text</b>.
+    <p class="muted">Connected only proves the token works. Use <b>Diagnostics → Run self-check</b> to prove inspection and source mapping.</p>
+  </section>
+  <footer class="row"><button id="diagBtn" type="button">Open diagnostics</button></footer>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "framework": "next-app",
+  "provider": "next-intl",
+  "defaultNamespace": "Common",
+  "sourceLocale": "en",
+  "sourceRoots": [
+    "app",
+    "components"
+  ],
+  "workspaces": [
+    {
+      "id": "messages",
+      "root": "messages",
+      "pattern": "{locale}.json",
+      "nsInKey": true
+    }
+  ],
+  "devOrigins": [
+    "http://localhost:3000"
+  ]
+}

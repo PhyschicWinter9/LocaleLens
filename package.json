@@ -1,0 +1,54 @@
+{
+  "name": "localelens-monorepo",
+  "private": true,
+  "version": "0.5.0",
+  "packageManager": "bun@1.4.3",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "build": "node scripts/build-packages.mjs && node packages/extension/build.mjs",
+    "verify": "bun run typecheck && bun run test && bun run build",
+    "demo": "node scripts/demo.mjs"
+  },
+  "devDependencies": {
+    "@babel/parser": "^8.0.7",
+    "@babel/traverse": "^8.0.7",
+    "@babel/types": "^8.0.6",
+    "@changesets/cli": "^3.0.3",
+    "@localelens/next": "workspace:*",
+    "@localelens/vite": "workspace:*",
+    "@playwright/test": "^1.64.1",
+    "@types/babel__traverse": "^7.28.0",
+    "@types/chrome": "^0.3.5",
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "latest",
+    "esbuild": "^0.28.2",
+    "exceljs": "^4.4.0",
+    "fflate": "^0.8.3",
+    "i18next": "^25.0.0",
+    "jsonc-parser": "^3.3.1",
+    "magic-string": "^1.4.3",
+    "next": "^16.4.2",
+    "next-intl": "^4.14.9",
+    "preact": "^11.0.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-i18next": "^16.0.0",
+    "tsup": "^9.0.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.5",
+    "zod": "^4.6.7"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "type": "module"
+}

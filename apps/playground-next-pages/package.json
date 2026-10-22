@@ -1,0 +1,21 @@
+{
+  "name": "playground-next-pages",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build"
+  },
+  "dependencies": {
+    "next": "^16.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "i18next": "^25.0.0",
+    "react-i18next": "^16.0.0"
+  },
+  "devDependencies": {
+    "@localelens/next": "workspace:*",
+    "@types/react": "^19.0.0",
+    "typescript": "^5.0.0"
+  }
+}
