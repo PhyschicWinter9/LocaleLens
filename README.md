@@ -1,6 +1,16 @@
 # LocaleLens
 
-Click text in your running React / Next.js / Vite app, edit its translations, or turn hardcoded strings into i18n calls. LocaleLens previews the exact diff and writes it to your local project files, safely and with undo. Internal developer tool: **development mode only, local-first, no cloud.**
+Click text in your running React / Next.js / Vite app, edit its translations, or turn hardcoded strings into i18n calls. LocaleLens previews the exact diff and writes it to your local project files, with hash checks and undo. A developer tool for **development mode only, local-first, no cloud.**
+
+> **Please read first: set your expectations.**
+> LocaleLens is a personal project, built to solve a problem I had in my own development workflow. It is shared as-is, in case it is useful to someone else. It is **not** a polished, commercially supported product.
+>
+> - Expect rough edges, missing features and bugs. It has been tested on a limited set of setups (see [docs/STATUS.md](docs/STATUS.md) for exactly which).
+> - It **modifies your source and translation files**. Commit or back up your work first, and review every diff before applying. Undo exists, but treat it as a safety net, not a guarantee.
+> - There is no warranty, no guaranteed support, and no promise of fixes, new features or compatibility with future Next.js / Vite / browser versions.
+> - Bug reports and pull requests are welcome, but responses may be slow or never come.
+>
+> If it doesn't fit your project, that's expected. It was built around mine.
 
 > Verified status (what is tested, what is not): [docs/STATUS.md](docs/STATUS.md).
 
@@ -18,13 +28,17 @@ Click text in your running React / Next.js / Vite app, edit its translations, or
 
 ## Install into a project
 
-Requires Node ≥ 22.18. From your private registry, or from the tarballs in `release/` (see [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md)):
+Requires Node ≥ 22.18. Install from npm (to try an unreleased build from this repo, use the tarballs described in [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md)):
 
-```bash
-npm i -D localelens @localelens/vite          # Vite;  use @localelens/next for Next.js
-npx localelens init                           # shows a diff, asks before changing anything
-npx localelens dev                            # prints the agent URL + session token
-```
+Works with **npm, pnpm and bun** (yarn is detected and gets the right command, but is not in the automated install check). Use `@localelens/next` instead of `@localelens/vite` for Next.js.
+
+| | install | run the CLI |
+|---|---|---|
+| npm | `npm i -D localelens @localelens/vite` | `npx localelens init` · `npx localelens dev` |
+| pnpm | `pnpm add -D localelens @localelens/vite` | `pnpm exec localelens init` · `pnpm exec localelens dev` |
+| bun | `bun add -d localelens @localelens/vite` | `bunx localelens init` · `bunx localelens dev` |
+
+`init` shows a diff and asks before changing anything; `dev` prints the agent URL and session token. `init` picks your package manager from the lockfile (`bun.lock`/`bun.lockb`, `pnpm-lock.yaml`, `yarn.lock`, `package-lock.json`) and prints the matching install command. To start the agent together with your dev server: `localelens dev -- bun run dev` (or `pnpm dev`, `npm run dev`).
 
 `init` detects framework/router/language/i18n library/locale folders and (with your approval) writes `localelens.config.json`, registers the plugin in `vite.config.*` / `next.config.*`, and ignores `.localelens/`. Flags: `--dry-run`, `--yes`, `--force`, `--interactive`. Existing files are backed up to `.localelens/backups/init/`.
 
@@ -63,4 +77,8 @@ node scripts/pack.mjs && node scripts/verify-install.mjs   # tarballs + fresh-pr
 ```
 
 Docs: [Architecture](docs/ARCHITECTURE.md) · [Security](docs/SECURITY.md) · [Agent API](docs/API.md) · [Troubleshooting](docs/TROUBLESHOOTING.md) · [Distribution](docs/DISTRIBUTION.md)
-"# LocaleLens" 
+"# LocaleLens"
+
+## License
+
+[GPL-3.0-only](LICENSE). In short: you may use, study, modify and share LocaleLens; if you distribute a modified version, you must do so under the same license and provide the source. LocaleLens runs only in development and adds nothing to your production build, so using it on a project does not by itself put your application under the GPL. (This is a plain-language summary, not legal advice; the license text governs.)

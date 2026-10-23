@@ -3,17 +3,17 @@
   "version": "0.5.0",
   "type": "module",
   "main": "dist/index.js",
-  "types": "src/index.ts",
+  "types": "index.d.ts",
   "exports": {
     ".": {
-      "types": "./src/index.ts",
+      "types": "./index.d.ts",
       "default": "./dist/index.js"
     },
     "./loader": "./dist/loader.cjs"
   },
   "files": [
     "dist",
-    "src"
+    "index.d.ts"
   ],
   "dependencies": {
     "zod": "^4.6.7"
@@ -22,8 +22,23 @@
     "@localelens/core": "workspace:*",
     "@localelens/ast-engine": "workspace:*"
   },
-  "license": "UNLICENSED",
+  "license": "GPL-3.0-only",
+  "description": "Dev-only Next.js (Turbopack + webpack) integration for LocaleLens: tags JSX text with source references. No effect on production builds.",
   "publishConfig": {
-    "access": "restricted"
+    "access": "public"
+  },
+  "keywords": [
+    "i18n",
+    "localization",
+    "translations",
+    "react",
+    "nextjs",
+    "vite",
+    "devtools",
+    "react-i18next",
+    "next-intl"
+  ],
+  "engines": {
+    "node": ">=22.18"
   }
 }

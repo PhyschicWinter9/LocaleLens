@@ -14,6 +14,7 @@ jobs:
       - run: bunx vitest run
       - run: bunx playwright install --with-deps chromium
       - run: xvfb-run -a bunx playwright test
-      - run: node scripts/pack.mjs && node scripts/verify-install.mjs
+      - run: npm i -g pnpm@10
+      - run: node scripts/pack.mjs && node scripts/verify-install.mjs   # npm, pnpm and bun
       - uses: actions/upload-artifact@v4
         with: { name: release, path: release/ }

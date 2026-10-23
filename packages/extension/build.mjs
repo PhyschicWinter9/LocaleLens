@@ -49,7 +49,7 @@ function png(size) {
 }
 for (const s of [16, 48, 128]) fs.writeFileSync(path.join(dist, "icons", `${s}.png`), png(s));
 
-// ---- zip for internal distribution
+// ---- zip for distribution (GitHub release / manual install)
 const files = {};
 const walk = (dir, base = "") => { for (const e of fs.readdirSync(dir, { withFileTypes: true })) { const p = path.join(dir, e.name); if (e.isDirectory()) walk(p, base + e.name + "/"); else files[base + e.name] = new Uint8Array(fs.readFileSync(p)); } };
 walk(dist);

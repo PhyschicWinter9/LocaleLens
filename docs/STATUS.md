@@ -1,14 +1,14 @@
 # Implementation status
 
-Last full verification: 2026-10-21, Windows 10, Node 24.11, Bun 1.4.3, Chromium 1248 (Playwright, headless, extension loaded), Next 16.4.2, Vite 8, TypeScript 7, all dependencies at latest majors.
+Last full verification: 2026-10-23, Windows 10, Node 24.11, Bun 1.4.3, Chromium 1248 (Playwright, headless, extension loaded), Next 16.4.2, Vite 8, TypeScript 7, all dependencies at latest majors.
 
 | Check | Result |
 |---|---|
 | `bun run build` (all packages + extension) | pass |
 | `bun run typecheck` (TS 7, strict) | pass |
-| Unit + integration (`vitest`, 7 files) | **108 / 108 pass** |
+| Unit + integration (`vitest`, 8 files) | **109 / 109 pass** |
 | Browser E2E (`playwright`, real Chromium + extension + dev servers) | **30 / 30 pass** |
-| `scripts/pack.mjs` + `scripts/verify-install.mjs` (fresh project, tarballs only) | **7 / 7 checks pass** |
+| `scripts/pack.mjs` + `scripts/verify-install.mjs` (fresh project, tarballs only), run once each for **npm 11, pnpm 10, bun 1.4** | **33 / 33 checks pass** (11 per package manager: install, lockfile detection, tarball install, `init` dry-run/apply, install hint, `doctor`, TypeScript typings of the published plugin, live dev-server instrumentation, clean production build) |
 | TODO/FIXME in source | 0 |
 | Mutation spot-checks (disable Host check / token compare / path containment → tests fail) | detected; restored |
 

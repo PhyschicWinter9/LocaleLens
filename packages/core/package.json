@@ -18,8 +18,5 @@
   "dependencies": {
     "zod": "^4.6.7"
   },
-  "license": "UNLICENSED",
-  "publishConfig": {
-    "access": "restricted"
-  }
+  "private": true
 }

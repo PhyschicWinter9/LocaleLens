@@ -3,7 +3,7 @@
   "version": "0.5.0",
   "type": "module",
   "main": "dist/index.js",
-  "types": "src/index.ts",
+  "types": "index.d.ts",
   "dependencies": {
     "@babel/parser": "^8.0.7",
     "@babel/traverse": "^8.0.7",
@@ -13,13 +13,13 @@
   },
   "exports": {
     ".": {
-      "types": "./src/index.ts",
+      "types": "./index.d.ts",
       "default": "./dist/index.js"
     }
   },
   "files": [
     "dist",
-    "src"
+    "index.d.ts"
   ],
   "devDependencies": {
     "@localelens/ast-engine": "workspace:*",
@@ -28,8 +28,23 @@
   "peerDependencies": {
     "vite": ">=5"
   },
-  "license": "UNLICENSED",
+  "license": "GPL-3.0-only",
+  "description": "Dev-only Vite plugin for LocaleLens: tags JSX text with source references. No effect on production builds.",
   "publishConfig": {
-    "access": "restricted"
+    "access": "public"
+  },
+  "keywords": [
+    "i18n",
+    "localization",
+    "translations",
+    "react",
+    "nextjs",
+    "vite",
+    "devtools",
+    "react-i18next",
+    "next-intl"
+  ],
+  "engines": {
+    "node": ">=22.18"
   }
 }

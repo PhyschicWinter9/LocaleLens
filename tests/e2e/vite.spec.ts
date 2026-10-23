@@ -47,8 +47,8 @@ test.describe.serial("LocaleLens on Vite + react-i18next", () => {
     panel = await openPanel("diagnostics");
     await panel.getByRole("button", { name: "Run self-check" }).click();
     const steps = panel.locator(".steps li");
-    await expect(steps).toHaveCount(6);
-    for (let i = 0; i < 6; i++) await expect(steps.nth(i).locator(".dot")).toHaveClass(/ok/, { timeout: 20_000 });
+    await expect(steps).toHaveCount(7); // bg, agent, auth, workspaces, content script, instrumentation, resolve
+    for (let i = 0; i < 7; i++) await expect(steps.nth(i).locator(".dot")).toHaveClass(/ok/, { timeout: 20_000 });
     await expect(panel.locator(".steps")).toContainText("Source resolution");
   });
 

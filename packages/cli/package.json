@@ -3,7 +3,6 @@
   "version": "0.5.0",
   "type": "module",
   "main": "dist/index.js",
-  "types": "src/index.ts",
   "dependencies": {
     "@babel/parser": "^8.0.7",
     "@babel/traverse": "^8.0.7",
@@ -30,9 +29,20 @@
     "@localelens/locale-registry": "workspace:*",
     "@localelens/translation-excel": "workspace:*"
   },
-  "license": "UNLICENSED",
+  "license": "GPL-3.0-only",
+  "description": "CLI for LocaleLens: click text in your dev app to edit translations or extract hardcoded strings (React, Vite, Next.js). Personal project, provided as-is.",
   "publishConfig": {
-    "access": "restricted"
+    "access": "public"
   },
-  "description": "LocaleLens CLI: visual i18n for React/Next/Vite (internal)"
+  "keywords": [
+    "i18n",
+    "localization",
+    "translations",
+    "react",
+    "nextjs",
+    "vite",
+    "devtools",
+    "react-i18next",
+    "next-intl"
+  ]
 }

@@ -1,34 +1,50 @@
-# Internal distribution & release
+# Distribution & release
 
-## Build artefacts
+Three packages are published to npm; everything else in `packages/` is `private` and bundled into them.
+
+| npm name | What |
+|---|---|
+| `localelens` | CLI (`npx localelens …`) |
+| `@localelens/vite` | Dev-only Vite plugin |
+| `@localelens/next` | Dev-only Next.js integration (Turbopack + webpack) |
+
+The browser extension is distributed separately (zip / store), see below.
+
+## Build artefacts (also used for trying an unreleased build)
 
 ```bash
 bun install
-node scripts/pack.mjs          # builds all packages + extension, writes ./release
-node scripts/verify-install.mjs   # installs release/*.tgz into a throwaway project and checks init/doctor/dev/build
+node scripts/pack.mjs             # builds everything, writes ./release/*.tgz + the extension zip
+node scripts/verify-install.mjs   # installs the tarballs into throwaway projects with npm, pnpm and bun and checks init/doctor/dev/build
 ```
 
-`release/` contains `localelens-<v>.tgz` (CLI), `localelens-vite-<v>.tgz`, `localelens-next-<v>.tgz`, `localelens-extension.zip`. Each package bundles its `@localelens/*` dependencies; only third-party runtime deps (Babel, magic-string, jsonc-parser, zod, exceljs, fflate) are installed from your registry.
-
-## Option A: local tarballs (no registry)
+Install an unreleased build from tarballs:
 ```bash
-npm i -D ./localelens-0.5.0.tgz ./localelens-vite-0.5.0.tgz
+npm  i   -D ./localelens-0.5.0.tgz ./localelens-vite-0.5.0.tgz
+pnpm add -D ./localelens-0.5.0.tgz ./localelens-vite-0.5.0.tgz
+bun  add -d ./localelens-0.5.0.tgz ./localelens-vite-0.5.0.tgz
 ```
 
-## Option B: private registry
-Packages are `UNLICENSED` with `publishConfig.access = restricted`. Example with Verdaccio / GitHub Packages / Artifactory:
+## Publishing to npm
+
+One-time setup:
+1. Create the npm scope: `@localelens` must be an npm **organization** (or your username) that you own. The names `localelens`, `@localelens/vite`, `@localelens/next` were unclaimed on npm when last checked.
+2. Add `repository`, `homepage` and `bugs` to the three `package.json` files once the repo URL exists (npm shows them on the package page).
+3. License is GPL-3.0-only (`LICENSE`, `license` field in each published `package.json`). If you ever want a different license, change both and tell contributors first.
+
+Each release:
 ```bash
-npm config set @localelens:registry https://registry.internal.example/
-npm publish release/localelens-vite-0.5.0.tgz
-npm publish release/localelens-next-0.5.0.tgz
-# the CLI is the unscoped `localelens`: publish to the same registry and set `registry=` for that name or scope it before publishing
+bun run verify && bun run test:e2e          # all green
+bunx changeset && bunx changeset version     # bump versions + changelog
+node scripts/pack.mjs && node scripts/verify-install.mjs
+cd packages/vite && npm publish --access public   # then packages/next, then packages/cli
 ```
-Versioning uses Changesets (`.changeset/`): `bunx changeset` → `bunx changeset version` → `node scripts/pack.mjs`.
+Publish `vite` and `next` first, then `localelens` (the CLI's `init` suggests installing them). Use `npm publish --dry-run` first to inspect the file list. Consider `--provenance` when publishing from CI.
+
+Only `dist/`, `README.md`, `LICENSE` and `package.json` go into each tarball. The bundled `@localelens/*` internals are inlined, so no other `@localelens/*` package needs publishing. Third-party runtime dependencies (Babel, magic-string, jsonc-parser, zod, exceljs, fflate) are normal `dependencies`.
 
 ## Extension
-- Developer/QA: unzip `localelens-extension.zip`, **Load unpacked**.
-- Managed fleet: the pinned id is derived from the public key in `packages/extension/extension-id.json`. To ship a signed `.crx` (force-install policy) you need the private key. It was generated into `.keys/extension-private.pem` (gitignored): **back it up to your secret store**; if lost, regenerate with `scripts/gen-extension-key.mjs` after deleting the json, which changes the id (update `EXTENSION_ID` consumers via the script).
-- Not published to the Chrome Web Store.
 
-## Release checklist
-1. `bun run verify` and `bun run test:e2e` green. 2. `node scripts/pack.mjs && node scripts/verify-install.mjs`. 3. Update `docs/STATUS.md` numbers. 4. Tag + publish tarballs. 5. Attach the extension zip.
+- Manual: unzip `localelens-extension.zip` (or use `packages/extension/dist`) and **Load unpacked** in Chrome / Edge.
+- Store: see [STORE_LISTING.md](STORE_LISTING.md). The extension ID is pinned from the public key in `packages/extension/extension-id.json`; the agent only accepts that ID. The store assigns its own ID when you upload an item **without** a `key`, so for a store release either upload with the key kept (allowed on first upload) or add the store's ID to `extensionIds` in users' `localelens.config.json`. Decide this before publishing, because users would otherwise be refused with `FORBIDDEN_ORIGIN`.
+- The private key is in `.keys/extension-private.pem` (gitignored): back it up. Losing it means the pinned ID can't be reproduced.

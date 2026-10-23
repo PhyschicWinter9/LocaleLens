@@ -24,8 +24,5 @@
   "devDependencies": {
     "@localelens/core": "workspace:*"
   },
-  "license": "UNLICENSED",
-  "publishConfig": {
-    "access": "restricted"
-  }
+  "private": true
 }

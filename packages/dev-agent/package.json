@@ -33,8 +33,5 @@
     "@localelens/adapter-next-intl": "workspace:*",
     "@localelens/translation-excel": "workspace:*"
   },
-  "license": "UNLICENSED",
-  "publishConfig": {
-    "access": "restricted"
-  }
+  "private": true
 }

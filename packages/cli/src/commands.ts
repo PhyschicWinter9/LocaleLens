@@ -121,7 +121,12 @@ export async function dev(f: Flags) {
   const rest = f._.slice(1);
   let child: ReturnType<typeof spawn> | null = null;
   if (rest.length) {
-    child = spawn(rest.join(" "), { cwd: root, stdio: "inherit", shell: true, env: { ...process.env, LOCALELENS_AGENT_URL: `http://127.0.0.1:${port}` } });
+    // Arguments are passed through verbatim. Windows needs a shell for npm/pnpm .cmd shims, so quote each argument there.
+    const win = process.platform === "win32";
+    const q = (a: string) => (/^[\w@%+=:,./\\-]+$/.test(a) ? a : `"${a.replace(/(\\*)"/g, '$1$1\\"').replace(/(\\+)$/, "$1$1")}"`);
+    child = win
+      ? spawn(rest.map(q).join(" "), { cwd: root, stdio: "inherit", shell: true, env: { ...process.env, LOCALELENS_AGENT_URL: `http://127.0.0.1:${port}` } })
+      : spawn(rest[0], rest.slice(1), { cwd: root, stdio: "inherit", env: { ...process.env, LOCALELENS_AGENT_URL: `http://127.0.0.1:${port}` } });
     child.on("exit", async (code) => { await agent.stop(); process.exit(code ?? 0); });
   }
   const bye = async () => { child?.kill(); await agent.stop(); process.exit(0); };

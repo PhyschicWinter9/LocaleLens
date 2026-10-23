@@ -11,6 +11,10 @@ const run = (cmd, args, cwd = root) => { const r = spawnSync(cmd, args, { cwd, s
 
 run("node", ["scripts/build-packages.mjs"]);
 run("node", ["packages/extension/build.mjs"]);
-for (const p of ["cli", "vite", "next"]) run("npm", ["pack", "--pack-destination", out, "--silent"], path.join(root, "packages", p));
+for (const p of ["cli", "vite", "next"]) {
+  const dir = path.join(root, "packages", p);
+  fs.copyFileSync(path.join(root, "LICENSE"), path.join(dir, "LICENSE")); // npm only packs files inside the package dir
+  try { run("npm", ["pack", "--pack-destination", out, "--silent"], dir); } finally { fs.rmSync(path.join(dir, "LICENSE"), { force: true }); }
+}
 fs.copyFileSync(path.join(root, "packages/extension/localelens-extension.zip"), path.join(out, "localelens-extension.zip"));
 console.log("\nrelease/:\n" + fs.readdirSync(out).map((f) => "  " + f).join("\n"));

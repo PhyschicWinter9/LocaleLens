@@ -4,4 +4,4 @@
 "@localelens/next": minor
 ---
 
-Initial internal release: inspector, safe source writes, Vite and Next 16 integration, translator exchange.
+First public release: inspector, source extraction, safe writes with undo, Vite and Next.js integration, translator Excel exchange.

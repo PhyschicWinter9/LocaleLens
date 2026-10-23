@@ -22,8 +22,5 @@
     "@localelens/core": "workspace:*",
     "@localelens/file-writer": "workspace:*"
   },
-  "license": "UNLICENSED",
-  "publishConfig": {
-    "access": "restricted"
-  }
+  "private": true
 }

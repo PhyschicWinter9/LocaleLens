@@ -9,5 +9,6 @@
   },
   "dependencies": {
     "@localelens/core": "workspace:*"
-  }
+  },
+  "private": true
 }
