@@ -24,6 +24,11 @@ describe("instrument", () => {
     expect(r.code).not.toContain("<p data-ll");
     expect(instrument(r.code, "A.tsx", "src/A.tsx")).toBeNull(); // idempotent
   });
+  it("resolves t from `await Promise.all([getTranslations(..), ..])` by index", () => {
+    const code = `export async function H() {\n  const [t, ta] = await Promise.all([getTranslations("landing.hero"), getTranslations("landing.access")]);\n  return <p>{t("body")}</p>;\n}\n`;
+    const c = enumerateCandidates(load(code, "H.tsx").elements[0], code, DEFAULT_ENUM);
+    expect(c[0]).toMatchObject({ kind: "i18n-call", key: "body", namespace: "landing.hero" });
+  });
   it("ignores unparsable and node_modules files", () => {
     expect(instrument("<<<", "A.tsx", "A.tsx")).toBeNull();
     expect(instrument(src, "/x/node_modules/p/A.tsx", "A.tsx")).toBeNull();

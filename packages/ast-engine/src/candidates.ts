@@ -106,11 +106,22 @@ export function findTBinding(path: NodePath, name: string, opts: EnumOpts): TBin
   if (bp.isVariableDeclarator()) {
     let init: t.Node | null | undefined = bp.node.init;
     if (init?.type === "AwaitExpression") init = init.argument;
+    // `const [t, tb] = await Promise.all([getTranslations("a"), getTranslations("b")])`: pick the call at t's index.
+    let id: t.Node = bp.node.id;
+    if (id.type === "ArrayPattern" && init?.type === "CallExpression" && init.callee.type === "MemberExpression"
+      && init.callee.object.type === "Identifier" && init.callee.object.name === "Promise" && init.callee.property.type === "Identifier"
+      && init.callee.property.name === "all" && init.arguments[0]?.type === "ArrayExpression") {
+      const i = id.elements.findIndex((e) => e?.type === "Identifier" && e.name === name);
+      let el = i < 0 ? null : init.arguments[0].elements[i];
+      if (el?.type === "AwaitExpression") el = el.argument;
+      if (!el || el.type !== "CallExpression") return null;
+      init = el;
+      id = id.elements[i] as t.Identifier;
+    }
     if (init?.type !== "CallExpression" || init.callee.type !== "Identifier") return null;
     const cb = bp.scope.getBinding(init.callee.name);
     const calleeOrig = cb?.path.isImportSpecifier() ? ((cb.path.node.imported as t.Identifier).name ?? init.callee.name) : init.callee.name;
     if (!opts.hookNames.has(calleeOrig)) return null;
-    const id = bp.node.id;
     if (id.type === "ObjectPattern") {
       const ok = id.properties.some((pr) => pr.type === "ObjectProperty" && pr.key.type === "Identifier" && pr.key.name === "t" && pr.value.type === "Identifier" && pr.value.name === name);
       if (!ok) return null;
