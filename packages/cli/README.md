@@ -14,7 +14,11 @@ npx localelens dev                        # prints the agent URL + session token
 
 pnpm: `pnpm add -D …` then `pnpm exec localelens init` · bun: `bun add -d …` then `bunx localelens init`.
 
-Then install the LocaleLens browser extension (Chrome / Edge, Manifest V3), paste the token in its popup, open DevTools and use the **LocaleLens** tab.
+Then install the LocaleLens browser extension (Chrome / Edge, Manifest V3). It is not on the Web Store yet:
+
+1. Download `localelens-extension.zip` from the [latest GitHub release](https://github.com/PhyschicWinter9/LocaleLens/releases/latest) and unzip it.
+2. Open `chrome://extensions` (or `edge://extensions`), enable **Developer mode**, click **Load unpacked** and pick the unzipped folder.
+3. Paste the token from `npx localelens dev` in the extension popup, open DevTools and use the **LocaleLens** tab.
 
 Commands: `init`, `dev [-- your dev command]`, `doctor`, `scan`, `check`, `diff`, `undo`, `export`, `import`. Run `npx localelens help`.
 
