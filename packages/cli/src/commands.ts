@@ -12,7 +12,7 @@ import { LocaleRegistry, validatePlaceholders } from "@localelens/locale-registr
 import { createI18nextAdapter } from "@localelens/adapter-i18next";
 import { nextIntlAdapter } from "@localelens/adapter-next-intl";
 import { detect, type Detection } from "./detect.ts";
-import { patchNextConfig, patchViteConfig, type Patch } from "./patch.ts";
+import { patchNextConfig, patchViteConfig, unpatchNextConfig, unpatchViteConfig, type Patch } from "./patch.ts";
 
 export interface Flags { _: string[]; [k: string]: string | boolean | string[] | undefined }
 const c = { dim: (s: string) => `\x1b[2m${s}\x1b[0m`, green: (s: string) => `\x1b[32m${s}\x1b[0m`, red: (s: string) => `\x1b[31m${s}\x1b[0m`, yellow: (s: string) => `\x1b[33m${s}\x1b[0m`, bold: (s: string) => `\x1b[1m${s}\x1b[0m` };
@@ -70,22 +70,61 @@ export default withLocaleLens({});
   if (!/^\.localelens\/?$/m.test(giBefore)) patches.push({ rel: ".gitignore", before: giBefore, after: giBefore + (giBefore && !giBefore.endsWith("\n") ? "\n" : "") + `${STATE_DIR}/\n`, note: "ignore local state (session token, backups)" });
 
   if (!patches.length) { out(c.green("\nNothing to change. Run `localelens doctor` to verify.")); return 0; }
+  const applied = await applyPatches(root, patches, f);
+  if (applied !== -1) return applied;
+  out(`\nInstall the plugin package, then start your app and the agent:\n  ${installHint(d)}\n  localelens dev            ${c.dim("(prints the session token for the browser extension)")}`);
+  return 0;
+}
+
+/** Show diffs, confirm, back up originals, then write (or delete when `after` is null). Returns -1 once applied, else an exit code. */
+async function applyPatches(root: string, patches: Patch[], f: Flags, label = "init"): Promise<number> {
   out(c.bold("\nProposed changes:"));
-  for (const p of patches) { out(`\n${c.bold(p.rel)} ${c.dim("— " + p.note)}`); out(unifiedDiff(p.before, p.after).split("\n").map((l) => l.startsWith("+") ? c.green(l) : l.startsWith("-") ? c.red(l) : c.dim(l)).join("\n")); }
+  for (const p of patches) { out(`\n${c.bold(p.rel)} ${c.dim("— " + p.note)}`); out(unifiedDiff(p.before, p.after ?? "").split("\n").map((l) => l.startsWith("+") ? c.green(l) : l.startsWith("-") ? c.red(l) : c.dim(l)).join("\n")); }
   if (f["dry-run"]) { out(c.dim("\n--dry-run: no files were changed.")); return 0; }
   if (!(await confirm("\nApply these changes?", f))) { out("Aborted. Nothing was changed."); return 1; }
-
   for (const p of patches) {
     const abs = path.join(root, p.rel);
     if (p.before && fs.existsSync(abs)) {
-      const bdir = path.join(root, STATE_DIR, "backups", "init");
+      if (fs.readFileSync(abs, "utf8") !== p.before) { out(c.red("✗ ") + `${p.rel} changed since the plan was made: skipped`); continue; }
+      const bdir = path.join(root, STATE_DIR, "backups", label);
       fs.mkdirSync(bdir, { recursive: true });
       fs.copyFileSync(abs, path.join(bdir, p.rel.replace(/[\\/]/g, "_") + `.${Date.now()}.bak`));
     }
-    fs.writeFileSync(abs, p.after);
+    if (p.after === null) fs.rmSync(abs, { force: true }); else fs.writeFileSync(abs, p.after);
     out(c.green("✓ ") + p.rel);
   }
-  out(`\nInstall the plugin package, then start your app and the agent:\n  ${installHint(d)}\n  localelens dev            ${c.dim("(prints the session token for the browser extension)")}`);
+  return -1;
+}
+
+// ---------------------------------------------------------------- uninstall
+/** Remove only what `init` added. Translations, app code and dependencies are never touched. */
+export async function uninstall(f: Flags) {
+  const root = rootOf(f);
+  const d = detect(root);
+  const patches: Patch[] = [];
+  const read = (rel: string) => fs.readFileSync(path.join(root, rel), "utf8");
+  for (const [rel, fn, pkg] of [[d.viteConfig, unpatchViteConfig, "@localelens/vite"], [d.nextConfig, unpatchNextConfig, "@localelens/next"]] as const) {
+    if (!rel) continue;
+    const before = read(rel);
+    if (!before.includes(pkg)) continue;
+    const after = fn(before, rel);
+    if (after === null) out(c.yellow(`Could not unpatch ${rel} safely: remove the ${pkg} import and usage by hand.`));
+    else patches.push({ rel, before, after, note: "remove LocaleLens plugin/wrapper" });
+  }
+  if (fs.existsSync(path.join(root, CONFIG_FILE))) patches.push({ rel: CONFIG_FILE, before: read(CONFIG_FILE), after: null, note: "delete LocaleLens config" });
+  const stateDir = path.join(root, STATE_DIR);
+  const keepState = fs.existsSync(path.join(stateDir, "backups")) || !!f["dry-run"];
+  if (fs.existsSync(path.join(root, ".gitignore")) && !keepState) {
+    const before = read(".gitignore");
+    const after = before.replace(/^\.localelens\/?\r?\n/m, "");
+    if (after !== before) patches.push({ rel: ".gitignore", before, after, note: "remove state-dir ignore entry" });
+  }
+  if (!patches.length && !fs.existsSync(stateDir)) { out(c.green("Nothing to uninstall.")); return 0; }
+  const code = await applyPatches(root, patches, f, "uninstall");
+  if (code !== -1) return code;
+  if (fs.existsSync(stateDir)) for (const e of fs.readdirSync(stateDir)) if (e !== "backups") fs.rmSync(path.join(stateDir, e), { recursive: true, force: true });
+  const rm = fs.existsSync(path.join(root, "bun.lock")) ? "bun remove" : fs.existsSync(path.join(root, "pnpm-lock.yaml")) ? "pnpm remove" : "npm uninstall";
+  out(`\nTranslations and app code were not touched. Backups are kept in ${STATE_DIR}/backups. Then remove the packages:\n  ${rm} localelens @localelens/next @localelens/vite`);
   return 0;
 }
 
@@ -200,6 +239,11 @@ export async function doctor(f: Flags) {
     const deps = { ...pkg.dependencies, ...pkg.devDependencies };
     const lib = cfg.provider === "next-intl" ? "next-intl" : cfg.importSource ?? "react-i18next";
     deps[lib] ? ok(`${lib} installed`) : bad(`${lib} not in package.json`, `Install ${lib}`);
+    if (f.mui) {
+      const mui = Object.keys(deps).filter((k) => k.startsWith("@mui/") && !/icons|styled-engine|system|utils|private/.test(k));
+      mui.length ? ok(`MUI: ${mui.map((k) => `${k}@${deps[k]}`).join(", ")}`) : warn("no @mui/* packages in package.json", "--mui checks are not applicable");
+      if (mui.length) out(c.dim("    LocaleLens maps MUI text through the JSX/props you write (children, label/placeholder/title props, `{col.label}` and `t(col.label)` config objects in the same file). Text built inside MUI itself, DataGrid localeText and props passed from another file are not mapped."));
+    }
     if (cfg.framework === "vite") {
       const vc = ["vite.config.ts", "vite.config.mts", "vite.config.js", "vite.config.mjs"].find((x) => fs.existsSync(path.join(root, x)));
       if (!vc) bad("vite.config.* not found", "Create one");

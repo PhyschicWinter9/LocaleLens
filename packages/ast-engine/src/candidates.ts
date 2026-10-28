@@ -188,6 +188,50 @@ function i18nCall(path: NodePath, call: t.CallExpression, opts: EnumOpts): Omit<
   return { kind: "i18n-call", text: "", key, namespace: ns, line: loc.line, column: loc.column, canExtract: false, matcher: null };
 }
 
+
+/**
+ * Config provenance: `{column.label}` / `t(column.label)` renders text defined elsewhere in the same file as
+ * `{ label: "..." }` or `{ label: t("ns:key") }`. Emit one candidate per definition; runtime text matching ranks them.
+ * Cross-file definitions (props from a caller) are not followed.
+ */
+function addProvenance(el: NodePath<t.JSXElement>, expr: t.Node, asKey: boolean, opts: EnumOpts, push: (c: Omit<RawCandidate, "id">) => void): boolean {
+  if (expr.type !== "MemberExpression" || expr.computed || expr.property.type !== "Identifier") return false;
+  const prop = expr.property.name;
+  const outerFn = (q: NodePath) => { let f = q.getFunctionParent(); for (let g = f?.getFunctionParent(); g; g = f.getFunctionParent()) f = g; return f; };
+  const elFn = outerFn(el);
+  let found = false;
+  el.scope.getProgramParent().path.traverse({
+    ObjectProperty(p) {
+      const k = p.node.key;
+      if (p.node.computed || !((k.type === "Identifier" && k.name === prop) || (k.type === "StringLiteral" && k.value === prop))) return;
+      const v = p.node.value, loc = v.loc!.start;
+      const where = `Defined in config at line ${loc.line} (\`${prop}\`)`;
+      if (v.type === "CallExpression" && !asKey) {
+        const c = i18nCall(p, v, opts);
+        if (c?.key) { push({ ...c, reason: where }); found = true; }
+        return;
+      }
+      const s = literalString(v);
+      if (s === null || !s.trim()) return;
+      if (asKey) { // t(column.label): the literal is the translation key
+        let key = s, ns: string | undefined;
+        const m = /^([^:]+):(.+)$/.exec(s);
+        if (m) { ns = m[1]; key = m[2]; }
+        push({ kind: "i18n-call", text: "", key, namespace: ns ?? opts.defaultNamespace, line: loc.line, column: loc.column, canExtract: false, reason: where, matcher: null });
+      } else {
+        const sameFn = !!elFn && outerFn(p) === elFn;
+        push({
+          kind: "string-expression", text: s, line: loc.line, column: loc.column, canExtract: sameFn,
+          reason: sameFn ? where : `${where}; outside this component, edit manually`,
+          parts: [{ text: s }], range: [v.start!, v.end!], replace: "node", matcher: matcherFor([{ text: s }]),
+        });
+      }
+      found = true;
+    },
+  });
+  return found;
+}
+
 /** Collect JSX children, looking through fragments. */
 function flatChildren(children: t.JSXElement["children"]): t.JSXElement["children"] {
   const out: t.JSXElement["children"] = [];
@@ -280,12 +324,23 @@ export function enumerateCandidates(el: NodePath<t.JSXElement>, code: string, op
       if (lit !== null) { run.push({ node: c, kind: "static-expr", raw: lit }); continue; }
       if (e.type === "CallExpression" && e.callee.type === "Identifier") {
         const call = i18nCall(el, e, opts);
-        if (call) { flush(); push(call); continue; }
+        if (call) {
+          flush();
+          const a0 = e.arguments[0];
+          if (!call.key && a0 && addProvenance(el, a0, true, opts, push)) continue;
+          push(call);
+          continue;
+        }
       }
       if (e.type === "ConditionalExpression" || e.type === "LogicalExpression") {
         flush();
         addStringLeaves(e, push);
         continue;
+      }
+      if (e.type === "MemberExpression" && children.every((x) => x === c || (x.type === "JSXText" && !x.value.trim()))) {
+        const before = out.length;
+        if (addProvenance(el, e, false, opts, push)) { flush(); continue; }
+        out.length = before;
       }
       run.push({ node: c, kind: isSimpleExpr(e) ? "expr" : "complex", raw: code.slice(e.start!, e.end!) });
       continue;

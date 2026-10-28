@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { detect, patchViteConfig, parseArgs } from "@localelens/cli";
+import { detect, patchViteConfig, patchNextConfig, unpatchViteConfig, unpatchNextConfig, parseArgs } from "@localelens/cli";
 
 const BIN = path.resolve(import.meta.dirname, "../packages/cli/dist/bin.js");
 let root: string;
@@ -169,5 +169,42 @@ describe("translator exchange via the built CLI", () => {
     const id = /undo with: localelens undo (\S+)/.exec(imp.stdout)![1];
     expect(cli("undo", id).status).toBe(0);
     expect(JSON.parse(read("src/locales/th/common.json"))).toEqual({ hi: "สวัสดี" });
+  });
+});
+
+describe("uninstall", () => {
+  const rt = (patch: (c: string, f: string) => string | null, unpatch: (c: string, f: string) => string | null, code: string, f: string) => {
+    const patched = patch(code, f)!;
+    expect(patched).not.toBe(code);
+    expect(unpatch(patched, f)).toBe(code);
+  };
+  it("unpatch is the exact inverse of patch (vite, next esm/cjs/ts, trailing plugins)", () => {
+    rt(patchViteConfig, unpatchViteConfig, `import { defineConfig } from "vite";\nimport react from "@vitejs/plugin-react";\n\nexport default defineConfig({\n  plugins: [react()],\n});\n`, "vite.config.ts");
+    rt(patchViteConfig, unpatchViteConfig, `import { defineConfig } from "vite";\nexport default defineConfig({ plugins: [] });\n`, "vite.config.ts");
+    rt(patchNextConfig, unpatchNextConfig, `import createNextIntlPlugin from "next-intl/plugin";\nconst c = {};\nexport default createNextIntlPlugin()(c);\n`, "next.config.mjs");
+    rt(patchNextConfig, unpatchNextConfig, `const nextConfig = { a: 1 };\r\nexport default nextConfig;\r\n`, "next.config.ts");
+    rt(patchNextConfig, unpatchNextConfig, `"use strict";\nmodule.exports = { a: 1 };\n`, "next.config.js");
+  });
+  it("refuses shapes it cannot reverse and leaves unrelated code alone", () => {
+    expect(unpatchNextConfig(`import { withLocaleLens } from "@localelens/next";\nexport default withLocaleLens(a, b);\n`, "next.config.mjs")).toBeNull();
+    expect(unpatchViteConfig(`export default {};\n`, "vite.config.ts")).toBe(`export default {};\n`);
+  });
+  it("CLI: --dry-run changes nothing; --yes removes config + wiring, keeps translations and backups", () => {
+    pkg({ react: "19", vite: "6", "react-i18next": "15" });
+    const vite = `import { defineConfig } from "vite";\nexport default defineConfig({ plugins: [] });\n`;
+    put("vite.config.ts", vite);
+    put("src/locales/en/common.json", `{\n  "hi": "Hello"\n}\n`);
+    put("src/App.tsx", `export const A = () => <h1>Plain</h1>;\n`);
+    cli("init", "--yes");
+    const wired = read("vite.config.ts");
+    expect(cli("uninstall", "--dry-run").status).toBe(0);
+    expect(read("vite.config.ts")).toBe(wired);
+    const run = cli("uninstall", "--yes");
+    expect(run.status, run.stdout + run.stderr).toBe(0);
+    expect(read("vite.config.ts")).toBe(vite);
+    expect(fs.existsSync(path.join(root, "localelens.config.json"))).toBe(false);
+    expect(read("src/locales/en/common.json")).toContain("Hello");
+    expect(fs.readdirSync(path.join(root, ".localelens/backups/uninstall")).length).toBeGreaterThan(0);
+    expect(cli("uninstall", "--yes").status).toBe(0); // idempotent
   });
 });

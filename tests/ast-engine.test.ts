@@ -152,3 +152,23 @@ describe("extract (next-intl)", () => {
     expect(r.template).toBe("Hello {name}");
   });
 });
+
+describe("config provenance (PP-style column labels)", () => {
+  const cands = (code: string, n: number) => enumerateCandidates(load(code, "T.tsx").elements[n], code, DEFAULT_ENUM);
+  it("{column.label} resolves to each `label:` definition in the file", () => {
+    const code = `export function T() {\n  const { t } = useTranslation();\n  const columns = [{ id: "a", label: "User name" }, { id: "e", label: t("common:email") }];\n  return <tr>{columns.map((column) => <th key={column.id}>{column.label}</th>)}</tr>;\n}\n`;
+    const c = cands(code, 1);
+    expect(c.map((x) => [x.kind, x.text || x.key, x.canExtract])).toEqual([["string-expression", "User name", true], ["i18n-call", "email", false]]);
+    expect(c[1]).toMatchObject({ namespace: "common", line: 3 });
+    expect(instrument(code, "T.tsx", "T.tsx")!.code).toContain("<th data-ll");
+  });
+  it("t(column.label) treats string definitions as keys; module-level literals are not extractable", () => {
+    const code = `const columns = [{ label: "common:email" }, { label: "Plain" }];\nexport function T() {\n  const { t } = useTranslation();\n  return <th>{t(column.label)}</th>;\n}\nexport function U() { return <th>{column.label}</th>; }\n`;
+    expect(cands(code, 0)[0]).toMatchObject({ kind: "i18n-call", key: "email", namespace: "common" });
+    expect(cands(code, 1).map((x) => x.canExtract)).toEqual([false, false]);
+  });
+  it("does not hijack member expressions mixed with text", () => {
+    const code = `const a = [{ name: "X" }];\nexport function T() { return <p>Hi {user.name}</p>; }\n`;
+    expect(cands(code, 0)[0].kind).toBe("dynamic-text");
+  });
+});

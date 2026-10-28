@@ -7,10 +7,10 @@
     "build": "vite build"
   },
   "dependencies": {
-    "i18next": "^25.0.0",
+    "i18next": "^26.5.11",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-i18next": "^16.0.0"
+    "react-i18next": "^17.1.9"
   },
   "devDependencies": {
     "@localelens/vite": "workspace:*",

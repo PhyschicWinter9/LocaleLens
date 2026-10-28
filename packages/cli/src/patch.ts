@@ -1,8 +1,9 @@
 import { MagicString } from "magic-string";
-import { parseSource, type NodePath } from "@localelens/ast-engine";
+import { parseSource, traverse, type NodePath } from "@localelens/ast-engine";
 import type * as t from "@babel/types";
 
-export interface Patch { rel: string; before: string; after: string; note: string }
+/** `after: null` deletes the file. */
+export interface Patch { rel: string; before: string; after: string | null; note: string }
 
 /** Add `localelens()` to a Vite config's plugins array (AST-based, formatting preserved). Returns null if it cannot be done safely. */
 export function patchViteConfig(code: string, filename: string): string | null {
@@ -81,3 +82,47 @@ export function patchNextConfig(code: string, filename: string): string | null {
   }
   return null;
 }
+
+/** Inverse of the patchers: remove only what `init` added. Returns null when the shape is not one we recognise. */
+function unpatch(code: string, filename: string, pkg: string, callee: (name: string) => boolean, unwrap: (call: t.CallExpression) => t.Node | null): string | null {
+  if (!code.includes(pkg)) return code;
+  let ast: t.File;
+  try { ast = parseSource(code, filename); } catch { return null; }
+  const s = new MagicString(code);
+  const names = new Set<string>();
+  // init prepends the line plus a blank line when the file had nothing above it
+  const lineEnd = (start: number, end: number) => { const m = (start === 0 ? /^[ \t]*\r?\n(\r?\n)?/ : /^[ \t]*\r?\n?/).exec(code.slice(end)); return end + (m ? m[0].length : 0); };
+  for (const n of ast.program.body) {
+    if (n.type === "ImportDeclaration" && n.source.value === pkg) {
+      n.specifiers.forEach((sp) => names.add(sp.local.name));
+      s.remove(n.start!, lineEnd(n.start!, n.end!));
+    } else if (n.type === "VariableDeclaration" && n.declarations.length === 1) {
+      const d = n.declarations[0];
+      if (d.init?.type === "CallExpression" && d.init.callee.type === "Identifier" && d.init.callee.name === "require" && d.init.arguments[0]?.type === "StringLiteral" && d.init.arguments[0].value === pkg) {
+        if (d.id.type === "ObjectPattern") d.id.properties.forEach((pr) => pr.type === "ObjectProperty" && pr.value.type === "Identifier" && names.add(pr.value.name));
+        s.remove(n.start!, lineEnd(n.start!, n.end!));
+      }
+    }
+  }
+  let bad = false, removed = 0;
+  traverse(ast, {
+    CallExpression(p) {
+      const c = p.node.callee;
+      if (c.type !== "Identifier" || !names.has(c.name) || !callee(c.name)) return;
+      removed++;
+      const inner = unwrap(p.node);
+      if (inner) { s.remove(p.node.start!, inner.start!); s.remove(inner.end!, p.node.end!); return; }
+      // array element `localelens(),` : drop it together with one separator
+      if (p.parent.type !== "ArrayExpression" || p.node.arguments.length) { bad = true; return; }
+      const arr = p.parent, i = arr.elements.indexOf(p.node);
+      const next = arr.elements[i + 1];
+      if (next) s.remove(p.node.start!, next.start!); else if (i > 0) s.remove(arr.elements[i - 1]!.end!, p.node.end!); else s.remove(p.node.start!, p.node.end!);
+    },
+  });
+  if (bad || !removed) return null;
+  return s.toString();
+}
+export const unpatchViteConfig = (code: string, filename: string) =>
+  unpatch(code, filename.endsWith("ts") ? "vite.config.ts" : "vite.config.js", "@localelens/vite", () => true, () => null);
+export const unpatchNextConfig = (code: string, filename: string) =>
+  unpatch(code, filename.endsWith("ts") ? "next.config.ts" : "next.config.js", "@localelens/next", (n) => n === "withLocaleLens", (call) => call.arguments.length === 1 ? call.arguments[0] : null);

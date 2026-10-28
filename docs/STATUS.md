@@ -1,12 +1,12 @@
 # Implementation status
 
-Last full verification: 2026-10-23, Windows 10, Node 24.11, Bun 1.4.3, Chromium 1248 (Playwright, headless, extension loaded), Next 16.4.2, Vite 8, TypeScript 7, all dependencies at latest majors.
+Last full verification: 2026-10-23, Windows 10, Node 24.11, Bun 1.4.3, Chromium 1248 (Playwright, headless, extension loaded), Next 16.4.2, Vite 8, TypeScript 7, all dependencies at latest majors (i18next 26, react-i18next 17 re-verified 2026-10-28: 116 unit, 30 E2E).
 
 | Check | Result |
 |---|---|
 | `bun run build` (all packages + extension) | pass |
 | `bun run typecheck` (TS 7, strict) | pass |
-| Unit + integration (`vitest`, 8 files) | **109 / 109 pass** |
+| Unit + integration (`vitest`, 8 files) | **116 / 116 pass** (2026-10-28) |
 | Browser E2E (`playwright`, real Chromium + extension + dev servers) | **30 / 30 pass** |
 | `scripts/pack.mjs` + `scripts/verify-install.mjs` (fresh project, tarballs only), run once each for **npm 11, pnpm 10, bun 1.4** | **33 / 33 checks pass** (11 per package manager: install, lockfile detection, tarball install, `init` dry-run/apply, install hint, `doctor`, TypeScript typings of the published plugin, live dev-server instrumentation, clean production build) |
 | TODO/FIXME in source | 0 |
@@ -47,7 +47,8 @@ The CI workflow (`.github/workflows/ci.yml`) has **not been run** on a CI machin
 - **Agent**: authenticated loopback API (docs/API.md), structured logs, diagnostics, single-instance guard.
 - **Extension**: popup, DevTools panel (Overview, Inspector, Translations, Hardcoded, Missing Keys, Changes/Diff, Diagnostics, Settings), end-to-end self-check, light/dark, narrow layouts.
 - **Translator exchange**: Excel/zip export with embedded base snapshot, import with three-way merge and per-conflict resolution, rename suggestions (`diffSnapshots`), formula/zip-bomb/traversal/macro protections.
-- **CLI**: `init` (diff + approval + backups; patches Vite and Next configs by AST), `dev`, `doctor`, `scan`, `check`, `diff`, `undo`, `export`, `import`.
+- **CLI**: `init` (diff + approval + backups; patches Vite and Next configs by AST), `uninstall` (exact AST inverse of `init`; keeps translations, backups and dependencies), `dev`, `doctor` (`--mui` reports MUI packages), `scan`, `check`, `diff`, `undo`, `export`, `import`.
+- **Config provenance** (same file only): `{col.label}` and `t(col.label)` resolve to `label: "..."` / `label: t("ns:key")` definitions; verified on 7 columns of PP `MatingAssignmentTable.tsx` (scan only, original untouched). Ambiguity is left to the existing candidate picker.
 
 ## Not verified
 
@@ -64,6 +65,7 @@ The CI workflow (`.github/workflows/ci.yml`) has **not been run** on a CI machin
 - **Rich text** (`Hello <b>world</b>!`): the sentence is split around child elements; extraction works but warns that translators cannot reorder across them.
 - **Plurals / ICU select** are not generated or validated beyond placeholder name consistency.
 - **YAML** locale files are not supported (JSON/JSONC only).
+- **Props from another file** (e.g. PP `SelectionTable` receives `columns` from callers), MUI DataGrid `localeText`/`headerName` built elsewhere, and `uninstall` of `init --force`-replaced configs are not followed or reversed; `uninstall` does not edit package.json or lockfiles (it prints the remove command).
 - **Components that do not forward `data-ll` to the DOM** show "no source mapping" for text rendered inside them.
 - **Next `--webpack`** does not reliably hot-reload dynamically imported server JSON (reproducible with a plain editor save, so not caused by LocaleLens); Turbopack and Vite do. The panel says so instead of claiming success.
 - **Content script** is declared for `localhost`, `127.0.0.1`, `[::1]`, `*.localhost`; other dev hosts need the popup's "Enable on this site".
