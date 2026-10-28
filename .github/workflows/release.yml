@@ -1,6 +1,6 @@
 name: release
 # push to main: CI gate, then either (a) open/update the Version PR when changesets are pending, or
-# (b) publish + create the GitHub Release when the Version PR has been merged (no pending changesets).
+# (b) create the GitHub Release (assets + checksums; npm publishing is done by hand from the packages zip) when the Version PR has been merged (no pending changesets).
 # workflow_dispatch: maintainers re-run (b); `publish: false` is a dry run that only builds and uploads the assets.
 on:
   push:
@@ -71,29 +71,21 @@ jobs:
     environment: release # add required reviewers here: the manual approval gate
     permissions:
       contents: write # tags + GitHub Release
-      packages: write # GitHub Packages
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { fetch-depth: 0 }
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 24
-          registry-url: https://npm.pkg.github.com
+        with: { node-version: 24 }
       - run: bun install --frozen-lockfile && npm i -g pnpm@10
       - name: Build, validate, assemble assets
         run: |
           node scripts/pack.mjs
-          node scripts/release-check.mjs --registry   # fails if the npm scope != repository owner
+          node scripts/release-check.mjs
           node scripts/verify-install.mjs
           node scripts/release-artifacts.mjs && node scripts/release-artifacts.mjs --verify
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with: { name: release-out, path: release-out/, retention-days: 30 }
-      - name: Publish to GitHub Packages, idempotent because changeset publish skips versions already on the registry
-        if: (github.event_name == 'push' || inputs.publish)
-        run: bun run release:publish && git push origin --tags
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: GitHub Release (create once; a retry only re-uploads assets)
         if: (github.event_name == 'push' || inputs.publish)
         run: |

@@ -1,6 +1,6 @@
 # Distribution & release
 
-Three packages are published (privately) to GitHub Packages; everything else in `packages/` is `private` and bundled into them.
+Three packages are published to npm (manually); everything else in `packages/` is `private` and bundled into them.
 
 | npm name | What |
 |---|---|
@@ -27,7 +27,7 @@ bun  add -d ./localelens-cli-0.6.0.tgz ./localelens-vite-0.6.0.tgz
 
 ## Publishing
 
-Private, via GitHub Packages and GitHub Releases, automated by Changesets and GitHub Actions. See [RELEASING.md](RELEASING.md) for setup, the release flow and recovery.
+GitHub Releases are automated by Changesets and GitHub Actions; npm publishing is manual. See [RELEASING.md](RELEASING.md) for setup, the release flow and recovery.
 
 Only `dist/`, `README.md`, `LICENSE` and `package.json` go into each tarball. The bundled `@localelens/*` internals are inlined, so no other `@localelens/*` package needs publishing. Third-party runtime dependencies (Babel, magic-string, jsonc-parser, zod, exceljs, fflate) are normal `dependencies`.
 

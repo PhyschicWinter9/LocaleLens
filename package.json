@@ -15,8 +15,7 @@
     "demo": "node scripts/demo.mjs",
     "version-packages": "changeset version && node scripts/sync-versions.mjs && bun install --lockfile-only",
     "release:check": "node scripts/release-check.mjs",
-    "release:artifacts": "node scripts/release-artifacts.mjs",
-    "release:publish": "changeset publish"
+    "release:artifacts": "node scripts/release-artifacts.mjs"
   },
   "devDependencies": {
     "@babel/parser": "^8.0.8",
