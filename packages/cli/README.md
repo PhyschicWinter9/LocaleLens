@@ -1,4 +1,4 @@
-# @localelens/cli
+# localelens
 
 CLI for LocaleLens: click text in your running React / Vite / Next.js dev app, edit its translation, or turn a hardcoded string into an i18n call, with a diff preview and undo.
 
@@ -7,7 +7,7 @@ CLI for LocaleLens: click text in your running React / Vite / Next.js dev app, e
 ## Use
 
 ```bash
-npm i -D @localelens/cli @localelens/vite     # or @localelens/next for Next.js
+npm i -D localelens @localelens/vite     # or @localelens/next for Next.js
 npx localelens init                       # shows a diff, asks before changing anything
 npx localelens dev                        # prints the agent URL + session token
 ```

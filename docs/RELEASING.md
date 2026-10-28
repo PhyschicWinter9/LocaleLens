@@ -20,7 +20,7 @@ No linter is configured in this repo; strict TypeScript is the static check. Add
 
 PR -> `ci.yml` -> merge -> `release.yml` re-runs CI on `main` -> if changesets are pending, `version-pr` opens/updates the **"chore: version packages"** PR (version bump, `CHANGELOG.md`, lockfile, synced extension version) -> review and merge it -> `detect` sees no pending changesets and no `v<version>` tag -> `publish` waits for approval of the `release` environment -> builds, validates, tags and creates the GitHub Release.
 
-Ordinary commits never reach `publish`. Published packages: `@localelens/cli` (bin `localelens`), `@localelens/vite`, `@localelens/next`, versioned together (`fixed` group). Everything else is `private: true` and bundled.
+Ordinary commits never reach `publish`. Published packages: `localelens` (the CLI), `@localelens/vite`, `@localelens/next`, versioned together (`fixed` group). Everything else is `private: true` and bundled.
 
 ## Creating a changeset
 

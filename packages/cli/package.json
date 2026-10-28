@@ -1,5 +1,5 @@
 {
-  "name": "@localelens/cli",
+  "name": "localelens",
   "version": "0.6.0",
   "type": "module",
   "main": "dist/index.js",

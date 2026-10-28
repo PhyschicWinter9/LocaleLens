@@ -117,7 +117,7 @@
       },
     },
     "packages/cli": {
-      "name": "@localelens/cli",
+      "name": "localelens",
       "version": "0.6.0",
       "bin": {
         "localelens": "dist/bin.js",
@@ -436,7 +436,7 @@
 
     "@localelens/ast-engine": ["@localelens/ast-engine@workspace:packages/ast-engine"],
 
-    "@localelens/cli": ["@localelens/cli@workspace:packages/cli"],
+    "localelens": ["localelens@workspace:packages/cli"],
 
     "@localelens/core": ["@localelens/core@workspace:packages/core"],
 

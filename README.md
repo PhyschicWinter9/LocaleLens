@@ -23,7 +23,7 @@ Click text in your running React / Next.js / Vite app, edit its translations, or
 
 1. A dev-only compiler plugin (Vite / Next) tags JSX elements that own text with `data-ll="<fileId>:<n>:<fingerprint>"`.
 2. You click text in the page; the extension sends that reference to the agent.
-3. The agent re-parses the real file, checks the fingerprint, and lists every candidate occurrence. It never guesses: ambiguity is shown, stale mappings are refused.
+3. The agent re-parses the real file, checks the fingerprint, and lists every candidate occurrence. It never guesses: ambiguity is shown, stale mappings are refused. Text that comes from config objects (`{ label: t("common:email") }` rendered as `{column.label}` / `t(column.label)`) is traced to its definition in the same file, or in another file when the definition's value matches what is on screen. Import graphs are not followed, and anything unresolved is reported as such.
 4. You edit translations or extract a hardcoded string; you see the diff of every file; you apply; the app hot-reloads.
 
 ## Install into a project
@@ -34,9 +34,9 @@ Works with **npm, pnpm and bun** (yarn is detected and gets the right command, b
 
 | | install | run the CLI |
 |---|---|---|
-| npm | `npm i -D @localelens/cli @localelens/vite` | `npx localelens init` · `npx localelens dev` |
-| pnpm | `pnpm add -D @localelens/cli @localelens/vite` | `pnpm exec localelens init` · `pnpm exec localelens dev` |
-| bun | `bun add -d @localelens/cli @localelens/vite` | `bunx localelens init` · `bunx localelens dev` |
+| npm | `npm i -D localelens @localelens/vite` | `npx localelens init` · `npx localelens dev` |
+| pnpm | `pnpm add -D localelens @localelens/vite` | `pnpm exec localelens init` · `pnpm exec localelens dev` |
+| bun | `bun add -d localelens @localelens/vite` | `bunx localelens init` · `bunx localelens dev` |
 
 `init` shows a diff and asks before changing anything; `dev` prints the agent URL and session token. `init` picks your package manager from the lockfile (`bun.lock`/`bun.lockb`, `pnpm-lock.yaml`, `yarn.lock`, `package-lock.json`) and prints the matching install command. To start the agent together with your dev server: `localelens dev -- bun run dev` (or `pnpm dev`, `npm run dev`).
 
@@ -57,7 +57,8 @@ The extension ID is pinned (`jppgenfhanihnnjhghjfoldgdjhklloa`) and is the only 
 |---|---|
 | `localelens init` | Detect + configure (diff, approval, backup) |
 | `localelens dev [-- cmd]` | Start the agent (optionally run your dev server alongside) |
-| `localelens doctor` | Diagnose setup with actionable fixes |
+| `localelens uninstall` | Remove what `init` added (config, plugin wiring, ignore entry); keeps translations and backups, prints the package-removal command (`--dry-run`, `--yes`) |
+| `localelens doctor` | Diagnose setup with actionable fixes (`--mui` also reports MUI packages) |
 | `localelens scan` | List hardcoded strings and keys used but undefined (`--json`) |
 | `localelens check` | CI gate: missing keys/locales, placeholder mismatches (`--hardcoded`) |
 | `localelens diff [id]` / `undo [id]` | Inspect / safely revert a transaction (`undo --recover` after a crash) |
@@ -65,7 +66,7 @@ The extension ID is pinned (`jppgenfhanihnnjhghjfoldgdjhklloa`) and is the only 
 
 ## Supported
 
-React + Vite, Next.js Pages Router, App Router and hybrid projects, Next 16 Turbopack and webpack; JS/TS/JSX/TSX; react-i18next, next-i18next (hook import), next-intl; JSON/JSONC locale files in any number of independent roots. Limits are listed honestly in [docs/STATUS.md](docs/STATUS.md).
+React + Vite, Next.js Pages Router, App Router and hybrid projects, Next 16 Turbopack and webpack; JS/TS/JSX/TSX; react-i18next, next-i18next (hook import), next-intl; JSON/JSONC locale files in any number of independent roots. With next-intl, extraction keeps Server Components valid: route files (`page`, `layout`, ...) and already-async components get `await getTranslations`, other sync components get `useTranslations` without becoming async or client components; react-i18next in a Server Component is refused with an explanation. Limits are listed honestly in [docs/STATUS.md](docs/STATUS.md).
 
 ## Develop LocaleLens
 
@@ -77,7 +78,6 @@ node scripts/pack.mjs && node scripts/verify-install.mjs   # tarballs + fresh-pr
 ```
 
 Docs: [Architecture](docs/ARCHITECTURE.md) · [Security](docs/SECURITY.md) · [Agent API](docs/API.md) · [Troubleshooting](docs/TROUBLESHOOTING.md) · [Distribution](docs/DISTRIBUTION.md)
-"# LocaleLens"
 
 ## License
 

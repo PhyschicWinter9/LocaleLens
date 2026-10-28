@@ -4,7 +4,7 @@ Three packages are published to npm (manually); everything else in `packages/` i
 
 | npm name | What |
 |---|---|
-| `@localelens/cli` | CLI (command `localelens`) |
+| `localelens` | CLI (command `localelens`) |
 | `@localelens/vite` | Dev-only Vite plugin |
 | `@localelens/next` | Dev-only Next.js integration (Turbopack + webpack) |
 
