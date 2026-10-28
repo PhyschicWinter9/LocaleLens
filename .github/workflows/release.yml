@@ -7,7 +7,44 @@ on:
     branches: [main]
   workflow_dispatch:
     inputs:
-      detect:
+      publish: { description: "Actually publish (false = dry run)", type: boolean, default: false }
+concurrency:
+  group: release
+  cancel-in-progress: false # never interrupt a publish
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
+  version-pr:
+    needs: ci
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version: 24 }
+      - run: bun install --frozen-lockfile
+      # No `publish:` here: this job only maintains the Version PR. A PR opened with GITHUB_TOKEN does not trigger CI,
+      # so set the RELEASE_PR_TOKEN secret (fine-grained PAT or GitHub App token) to make required checks run on it.
+      - uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
+        with:
+          version: bun run version-packages
+          title: "chore: version packages"
+          commit: "chore: version packages"
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PR_TOKEN || secrets.GITHUB_TOKEN }}
+
+  detect:
     needs: ci
     runs-on: ubuntu-latest
     outputs:
