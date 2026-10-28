@@ -38,11 +38,11 @@ jobs:
       # so set the RELEASE_PR_TOKEN secret (fine-grained PAT or GitHub App token) to make required checks run on it.
       - uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
         with:
-          version: bun run version-packages
-          title: "chore: version packages"
-          commit: "chore: version packages"
-        env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_PR_TOKEN || secrets.GITHUB_TOKEN }}
+          version-script: bun run version-packages
+          pr-title: "chore: version packages"
+          commit-message: "chore: version packages"
+          github-token: ${{ secrets.RELEASE_PR_TOKEN || secrets.GITHUB_TOKEN }}
+          create-github-releases: false # the publish job creates the single v<version> release
 
   detect:
     needs: ci
