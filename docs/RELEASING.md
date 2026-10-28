@@ -45,7 +45,7 @@ Prerelease: `bunx changeset pre enter beta`, commit, release as usual (`1.0.0-be
 After the GitHub Release exists, download `localelens-packages-vX.Y.Z.zip`, check `sha256sum -c checksums.sha256`, unzip, then publish the tarballs yourself, vite and next first:
 
 ```bash
-npm publish localelens-vite-X.Y.Z.tgz --access public   # then localelens-next-…, localelens-cli-…
+npm publish localelens-vite-X.Y.Z.tgz --access public   # then localelens-next-…, localelens-X.Y.Z.tgz (the CLI)
 ```
 
 The packages have no `publishConfig`, so nothing publishes accidentally and the registry/access is your explicit choice. The `@localelens` scope must exist on the registry you use. Registry versions cannot be overwritten.
