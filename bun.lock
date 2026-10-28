@@ -118,7 +118,7 @@
     },
     "packages/cli": {
       "name": "@localelens/cli",
-      "version": "0.6.0",
+      "version": "0.7.0",
       "bin": {
         "localelens": "dist/bin.js",
       },
@@ -201,7 +201,7 @@
     },
     "packages/next": {
       "name": "@localelens/next",
-      "version": "0.6.0",
+      "version": "0.7.0",
       "dependencies": {
         "zod": "^4.6.7",
       },
@@ -224,7 +224,7 @@
     },
     "packages/vite": {
       "name": "@localelens/vite",
-      "version": "0.6.0",
+      "version": "0.7.0",
       "dependencies": {
         "@babel/parser": "^8.0.7",
         "@babel/traverse": "^8.0.7",
