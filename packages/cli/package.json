@@ -31,10 +31,6 @@
   },
   "license": "GPL-3.0-only",
   "description": "CLI for LocaleLens: click text in your dev app to edit translations or extract hardcoded strings (React, Vite, Next.js).",
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com",
-    "access": "restricted"
-  },
   "keywords": [
     "i18n",
     "localization",

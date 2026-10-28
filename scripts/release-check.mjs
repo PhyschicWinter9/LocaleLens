@@ -1,5 +1,4 @@
 // Release gate: version sync, MV3 manifest, publishable-package set, tracked-file and tarball allowlists.
-// `--registry` additionally requires the npm scope to equal the GitHub repository owner (GitHub Packages rule).
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -37,16 +36,14 @@ if (import.meta.filename === process.argv[1]) {
   }
 
   // 3. publishable set
-  const owner = (process.env.GITHUB_REPOSITORY_OWNER ?? json("packages/cli/package.json").repository.url.match(/github\.com[/:]([^/]+)\//)?.[1] ?? "").toLowerCase();
   for (const d of fs.readdirSync(path.join(root, "packages"))) {
     const p = json(`packages/${d}/package.json`), pub = d in PUBLISHED;
     check(pub ? !p.private : p.private === true, `packages/${d}: ${pub ? "must be publishable" : "must be private:true"}`);
     if (!pub) continue;
     check(p.name === PUBLISHED[d], `packages/${d} name ${p.name} != ${PUBLISHED[d]}`);
-    check(p.publishConfig?.registry === "https://npm.pkg.github.com" && p.publishConfig?.access === "restricted", `${p.name}: publishConfig must target GitHub Packages, restricted`);
+    check(!p.publishConfig, `${p.name}: no publishConfig (publishing is manual: npm publish <tarball> --access public)`);
     check(p.repository?.url, `${p.name}: repository required by GitHub Packages`);
     for (const [n, v] of Object.entries({ ...p.dependencies, ...p.peerDependencies })) check(!n.startsWith("@localelens/") && !String(v).startsWith("workspace:"), `${p.name}: runtime dep ${n}@${v} would not resolve (internals are bundled)`);
-    if (process.argv.includes("--registry")) check(p.name.startsWith(`@${owner}/`), `${p.name}: GitHub Packages scope must equal repository owner "@${owner}"`);
   }
   check(json("packages/cli/package.json").bin?.localelens === "dist/bin.js", "CLI bin `localelens` missing");
 
