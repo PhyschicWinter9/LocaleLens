@@ -15,3 +15,10 @@ export class LlError extends Error {
     return { code: this.code, message: this.message, details: this.details };
   }
 }
+
+/** Stage-specific translation diagnostics (resolution / editability), distinct from request errors above. */
+export const TranslationCodes = [
+  "TRANSLATION_REFERENCE_UNRESOLVED", "NAMESPACE_UNRESOLVED", "LOCALE_FILE_NOT_FOUND", "TRANSLATION_KEY_NOT_FOUND",
+  "TRANSLATION_FILE_AMBIGUOUS", "RUNTIME_FILE_MAPPING_MISMATCH", "SOURCE_MAPPING_LOW_CONFIDENCE", "TRANSLATION_EDIT_UNAVAILABLE",
+] as const;
+export type TranslationCode = (typeof TranslationCodes)[number];

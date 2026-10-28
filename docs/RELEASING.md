@@ -20,7 +20,7 @@ No linter is configured in this repo; strict TypeScript is the static check. Add
 
 PR -> `ci.yml` -> merge -> `release.yml` re-runs CI on `main` -> if changesets are pending, `version-pr` opens/updates the **"chore: version packages"** PR (version bump, `CHANGELOG.md`, lockfile, synced extension version) -> review and merge it -> `detect` sees no pending changesets and no `v<version>` tag -> `publish` waits for approval of the `release` environment -> builds, validates, tags and creates the GitHub Release.
 
-Ordinary commits never reach `publish`. Published packages: `@localelens/cli` (bin `localelens`), `@localelens/vite`, `@localelens/next`, versioned together (`fixed` group). Everything else is `private: true` and bundled.
+Ordinary commits never reach `publish`. Published packages: `localelens` (the CLI), `@localelens/vite`, `@localelens/next`, versioned together (`fixed` group). Everything else is `private: true` and bundled.
 
 ## Creating a changeset
 
@@ -45,7 +45,7 @@ Prerelease: `bunx changeset pre enter beta`, commit, release as usual (`1.0.0-be
 After the GitHub Release exists, download `localelens-packages-vX.Y.Z.zip`, check `sha256sum -c checksums.sha256`, unzip, then publish the tarballs yourself, vite and next first:
 
 ```bash
-npm publish localelens-vite-X.Y.Z.tgz --access public   # then localelens-next-…, localelens-cli-…
+npm publish localelens-vite-X.Y.Z.tgz --access public   # then localelens-next-…, localelens-X.Y.Z.tgz (the CLI)
 ```
 
 The packages have no `publishConfig`, so nothing publishes accidentally and the registry/access is your explicit choice. The `@localelens` scope must exist on the registry you use. Registry versions cannot be overwritten.

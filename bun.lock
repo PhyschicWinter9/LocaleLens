@@ -117,8 +117,8 @@
       },
     },
     "packages/cli": {
-      "name": "@localelens/cli",
-      "version": "0.6.0",
+      "name": "localelens",
+      "version": "0.7.0",
       "bin": {
         "localelens": "dist/bin.js",
       },
@@ -201,7 +201,7 @@
     },
     "packages/next": {
       "name": "@localelens/next",
-      "version": "0.6.0",
+      "version": "0.7.0",
       "dependencies": {
         "zod": "^4.6.7",
       },
@@ -224,7 +224,7 @@
     },
     "packages/vite": {
       "name": "@localelens/vite",
-      "version": "0.6.0",
+      "version": "0.7.0",
       "dependencies": {
         "@babel/parser": "^8.0.7",
         "@babel/traverse": "^8.0.7",
@@ -435,8 +435,6 @@
     "@localelens/adapter-next-intl": ["@localelens/adapter-next-intl@workspace:packages/adapter-next-intl"],
 
     "@localelens/ast-engine": ["@localelens/ast-engine@workspace:packages/ast-engine"],
-
-    "@localelens/cli": ["@localelens/cli@workspace:packages/cli"],
 
     "@localelens/core": ["@localelens/core@workspace:packages/core"],
 
@@ -1001,6 +999,8 @@
     "listenercount": ["listenercount@1.0.1", "", {}, "sha512-3mk/Zag0+IJxeDrxSgaDPy4zZ3w05PRZeJNnlWhzFz5OkX49J4krc+A8X2d2M69vGMBEX0uyl8M+W+8gH+kBqQ=="],
 
     "load-tsconfig": ["load-tsconfig@0.2.5", "", {}, "sha512-IXO6OCs9yg8tMKzfPZ1YmheJbZCiEsnBdcB03l0OcfK9prKnJb96siuHCr5Fl37/yo9DnKU+TLpxzTUspw9shg=="],
+
+    "localelens": ["localelens@workspace:packages/cli"],
 
     "lodash.defaults": ["lodash.defaults@4.2.0", "", {}, "sha512-qjxPLHd3r5DnsdGacqOMU6pb/avJzdh9tFX2ymgoZE27BmjXrNy/y4LoaiTeAb+O3gL8AfpJGtqfX/ae2leYYQ=="],
 

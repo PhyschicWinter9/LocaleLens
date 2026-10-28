@@ -9,7 +9,7 @@ const json = (p) => JSON.parse(read(p));
 const errors = [];
 const check = (ok, msg) => { if (!ok) errors.push(msg); };
 
-export const PUBLISHED = { cli: "@localelens/cli", vite: "@localelens/vite", next: "@localelens/next" };
+export const PUBLISHED = { cli: "localelens", vite: "@localelens/vite", next: "@localelens/next" };
 export const FORBIDDEN = [/(^|\/)\.env(\.|$)/, /(^|\/)\.localelens\//, /session\.json$/, /(^|\/)\.keys\//, /\.pem$/, /\.key$/, /(^|\/)example\//, /(^|\/)\.tmp\//, /\.map$/, /\.(bak|orig|journal)$/, /(^|\/)node_modules\//];
 export const SECRET = /-----BEGIN [A-Z ]*PRIVATE KEY-----|ghp_[A-Za-z0-9]{36}|github_pat_\w{40,}|npm_[A-Za-z0-9]{36}|_authToken\s*=\s*\S/;
 

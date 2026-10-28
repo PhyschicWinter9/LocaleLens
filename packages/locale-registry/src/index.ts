@@ -19,6 +19,16 @@ export interface WorkspaceConfig {
   /** Source globs routed to this workspace by default. */
   routes?: string[];
 }
+export interface ResolvedRef {
+  workspaceId: string;
+  /** File-level namespace and key inside it: exactly what `plan()` accepts. */
+  namespace: string;
+  key: string;
+  jsonPath: string;
+  values: Record<string, string>;
+  locales: { locale: string; file: string; status: "found" | "no-file" | "missing-key" | "not-a-string" | "invalid-file"; value?: string }[];
+  writable: boolean;
+}
 export interface LocaleFile { workspaceId: string; locale: string; namespace: string; rel: string; fileId: string }
 
 const TOKEN = /\{(locale|ns)\}/g;
@@ -156,6 +166,85 @@ export class LocaleRegistry {
       if (Object.keys(values).length) hits.push({ workspaceId: w.id, values });
     }
     return hits;
+  }
+
+  /**
+   * next-intl semantics: a namespace is a dotted path into the merged messages, so the logical path `landing.hero.body`
+   * may live in `landing.json` as `hero.body`, in `landing.hero.json` as `body`, or at the root of a single file.
+   * Returns every (workspace, file namespace, key) split where the entry exists, plus per-locale file status.
+   * Never guesses: several hits are returned as-is for the caller to treat as ambiguous.
+   */
+  async resolveLogical(logical: string, only?: string): Promise<ResolvedRef[]> {
+    const segs = logical.split(".").filter(Boolean);
+    const hits: ResolvedRef[] = [];
+    if (!segs.length) return hits;
+    for (const w of this.workspaces) {
+      if (only && w.id !== only) continue;
+      const files = await this.discover(w);
+      const locales = [...new Set(files.map((f) => f.locale))].sort();
+      const hasNs = w.pattern.includes("{ns}");
+      const splits: { ns: string; key: string }[] = [];
+      if (!hasNs && !w.nsInKey) splits.push({ ns: this.fixedNs(w), key: logical });
+      else for (let i = 1; i < segs.length; i++) splits.push({ ns: segs.slice(0, i).join("."), key: segs.slice(i).join(".") });
+      for (const sp of splits) {
+        const loc: ResolvedRef["locales"] = [];
+        for (const l of locales) {
+          const { rel } = this.pathFor(w, l, hasNs ? sp.ns : this.fixedNs(w));
+          if (!files.some((f) => f.rel === rel)) { loc.push({ locale: l, file: rel, status: "no-file" }); continue; }
+          try {
+            const r = await this.read(w, l, hasNs ? sp.ns : this.fixedNs(w));
+            const v = this.lookup(w, r.data, sp.ns, sp.key);
+            loc.push(v.found && v.value !== undefined ? { locale: l, file: rel, status: "found", value: v.value } : { locale: l, file: rel, status: v.found ? "not-a-string" : "missing-key" });
+          } catch { loc.push({ locale: l, file: rel, status: "invalid-file" }); }
+        }
+        if (!loc.some((x) => x.status === "found")) continue;
+        const values = Object.fromEntries(loc.flatMap((x) => (x.value !== undefined ? [[x.locale, x.value]] : [])));
+        hits.push({ workspaceId: w.id, namespace: sp.ns, key: sp.key, jsonPath: this.keyPath(w, sp.ns, sp.key, {}).join("."), values, locales: loc, writable: w.writable !== false });
+      }
+    }
+    return hits;
+  }
+
+  /** Does any file the logical path could belong to exist at all? Separates LOCALE_FILE_NOT_FOUND from TRANSLATION_KEY_NOT_FOUND. */
+  async anyFileFor(logical: string): Promise<boolean> {
+    const segs = logical.split(".").filter(Boolean);
+    for (const w of this.workspaces) {
+      const files = await this.discover(w);
+      if (!w.pattern.includes("{ns}")) { if (files.length) return true; continue; }
+      for (let i = 1; i <= segs.length; i++) if (files.some((f) => f.namespace === segs.slice(0, i).join("."))) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Entries whose logical path ends with `suffix` and/or starts with `prefix` (dynamic keys, `t` received as a prop).
+   * ponytail: reads every locale file per call; add an mtime-keyed cache for very large message sets.
+   */
+  async searchLogical(match: (logicalPath: string) => boolean, limit = 200): Promise<{ workspaceId: string; namespace: string; key: string; logical: string; values: Record<string, string> }[]> {
+    const acc = new Map<string, { workspaceId: string; namespace: string; key: string; logical: string; values: Record<string, string> }>();
+    for (const w of this.workspaces) {
+      for (const fl of await this.discover(w)) {
+        let data: any;
+        try { data = (await this.read(w, fl.locale, fl.namespace)).data; } catch { continue; }
+        const walk = (o: any, p: string[]) => {
+          for (const [k, v] of Object.entries(o ?? {})) {
+            if (acc.size >= limit) return;
+            const pp = [...p, k];
+            if (typeof v === "string") {
+              const fileNs = w.nsInKey ? pp[0] : fl.namespace;
+              const key = w.nsInKey ? pp.slice(1).join(".") : pp.join(".");
+              const logical = w.pattern.includes("{ns}") ? `${fl.namespace}.${pp.join(".")}` : pp.join(".");
+              if (!match(logical)) continue;
+              const id = `${w.id}|${fileNs}|${key}`;
+              const e = acc.get(id) ?? { workspaceId: w.id, namespace: fileNs, key, logical, values: {} };
+              e.values[fl.locale] = v; acc.set(id, e);
+            } else if (v && typeof v === "object") walk(v, pp);
+          }
+        };
+        walk(data, []);
+      }
+    }
+    return [...acc.values()];
   }
 
   /** Workspace to preselect for a source file: explicit route match, else nearest root, else first writable. */

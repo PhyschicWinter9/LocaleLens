@@ -22,7 +22,7 @@
   ],
   "fixed": [
     [
-      "@localelens/cli",
+      "localelens",
       "@localelens/vite",
       "@localelens/next"
     ]

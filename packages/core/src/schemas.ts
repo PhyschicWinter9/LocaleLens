@@ -17,6 +17,37 @@ export const ResolveReq = z.object({
   attr: z.string().max(50).optional(),
 });
 
+export const TranslationHit = z.object({
+  workspaceId: z.string(),
+  namespace: z.string(),
+  key: z.string(),
+  jsonPath: z.string(),
+  values: z.record(z.string(), z.string()),
+  locales: z.array(z.object({ locale: z.string(), file: z.string(), status: z.string(), value: z.string().optional() })),
+  writable: z.boolean(),
+});
+export type TranslationHit = z.infer<typeof TranslationHit>;
+
+/** Translation-side facts about an i18n-call occurrence, independent of how well the AST mapping matched. */
+export const TranslationInfo = z.object({
+  provider: z.string(),
+  /** As written at the call site. */
+  namespace: z.string().optional(),
+  key: z.string().optional(),
+  logicalPath: z.string().optional(),
+  /** verified: exactly one owning file entry; ambiguous: several (never guessed); unresolved: none. */
+  lookup: z.enum(["verified", "ambiguous", "unresolved"]),
+  /** Does the verified value match the on-screen text? "unknown" when no text was given. */
+  runtimeMatch: z.enum(["match", "mismatch", "unknown"]),
+  hits: z.array(TranslationHit),
+  code: z.string().optional(),
+  message: z.string().optional(),
+  /** Independent capabilities: editing the JSON needs no source rewrite. */
+  canEditTranslation: z.boolean(),
+  canRewriteSource: z.boolean(),
+});
+export type TranslationInfo = z.infer<typeof TranslationInfo>;
+
 export const Candidate = z.object({
   id: z.string(),
   kind: z.enum(["jsx-text", "attribute", "string-expression", "template", "dynamic-text", "i18n-call", "unsupported"]),
@@ -34,6 +65,7 @@ export const Candidate = z.object({
   template: z.string().optional(),
   vars: z.array(z.string()).optional(),
   values: z.record(z.string(), z.string()).optional(),
+  translation: TranslationInfo.optional(),
 });
 export type Candidate = z.infer<typeof Candidate>;
 

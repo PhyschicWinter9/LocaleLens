@@ -4,7 +4,7 @@ Three packages are published to npm (manually); everything else in `packages/` i
 
 | npm name | What |
 |---|---|
-| `@localelens/cli` | CLI (command `localelens`) |
+| `localelens` | CLI (command `localelens`) |
 | `@localelens/vite` | Dev-only Vite plugin |
 | `@localelens/next` | Dev-only Next.js integration (Turbopack + webpack) |
 
@@ -20,9 +20,9 @@ node scripts/verify-install.mjs   # installs the tarballs into throwaway project
 
 Install an unreleased build from tarballs:
 ```bash
-npm  i   -D ./localelens-cli-0.6.0.tgz ./localelens-vite-0.6.0.tgz
-pnpm add -D ./localelens-cli-0.6.0.tgz ./localelens-vite-0.6.0.tgz
-bun  add -d ./localelens-cli-0.6.0.tgz ./localelens-vite-0.6.0.tgz
+npm  i   -D ./localelens-0.7.0.tgz ./localelens-vite-0.7.0.tgz
+pnpm add -D ./localelens-0.7.0.tgz ./localelens-vite-0.7.0.tgz
+bun  add -d ./localelens-0.7.0.tgz ./localelens-vite-0.7.0.tgz
 ```
 
 ## Publishing

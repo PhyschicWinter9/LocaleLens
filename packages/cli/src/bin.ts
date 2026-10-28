@@ -8,7 +8,7 @@ const HELP = `localelens <command> [options]
   uninstall Remove what init added (config, plugin wiring); keeps translations   --dry-run  --yes
   dev       Start the local agent (prints the session token)   [-- <your dev command>]
             --port <n>
-  doctor    Diagnose setup problems
+  doctor    Diagnose setup problems (--mui, --translations)
   scan      List hardcoded strings and undefined keys          --json
   check     CI gate: missing keys / locales / placeholders     --hardcoded --json
   diff      Show what the last transaction changed             [transaction-id]

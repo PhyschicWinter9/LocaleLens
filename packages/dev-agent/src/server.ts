@@ -12,7 +12,7 @@ import { Exchange } from "./exchange.ts";
 
 /** Pinned id of the bundled extension (derived from the public key in its manifest). Overridable via config. */
 export const BUNDLED_EXTENSION_ID = EXTENSION_ID;
-export const VERSION = "0.6.0";
+export const VERSION = "0.7.0";
 
 export interface AgentOptions {
   root: string;

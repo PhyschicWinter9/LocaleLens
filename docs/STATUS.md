@@ -6,7 +6,7 @@ Last full verification: 2026-10-28, Windows 10, Node 24.11, Bun 1.4.3, Chromium 
 |---|---|
 | `bun run build` (all packages + extension) | pass |
 | `bun run typecheck` (TS 7, strict) | pass |
-| Unit + integration (`vitest`, 8 files) | **122 / 122 pass** |
+| Unit + integration (`vitest`, 9 files) | **140 / 140 pass** |
 | Browser E2E (`playwright`, real Chromium + extension + dev servers) | **30 / 30 pass** |
 | `scripts/pack.mjs` + `scripts/verify-install.mjs` (fresh project, tarballs only), run once each for **npm 11, pnpm 10, bun 1.4** | **33 / 33 checks pass** (11 per package manager: install, lockfile detection, tarball install, `init` dry-run/apply, install hint, `doctor`, TypeScript typings of the published plugin, live dev-server instrumentation, clean production build) |
 | TODO/FIXME in source | 0 |
@@ -49,6 +49,13 @@ The CI, release and security workflows (`.github/workflows/`) have **not been ru
 - **Translator exchange**: Excel/zip export with embedded base snapshot, import with three-way merge and per-conflict resolution, rename suggestions (`diffSnapshots`), formula/zip-bomb/traversal/macro protections.
 - **CLI**: `init` (diff + approval + backups; patches Vite and Next configs by AST), `uninstall` (exact AST inverse of `init`; keeps translations, backups and dependencies), `dev`, `doctor` (`--mui` reports MUI packages), `scan`, `check`, `diff`, `undo`, `export`, `import`.
 - **Config provenance** (same file, then a project-wide search by property name filtered by on-screen text; no import graph): `{col.label}` and `t(col.label)` resolve to `label: "..."` / `label: t("ns:key")` definitions; verified on 7 columns of PP `MatingAssignmentTable.tsx` (scan only, original untouched). Ambiguity is left to the existing candidate picker.
+
+## next-intl translation resolution (tests/translation-resolution.test.ts, synthetic fixtures)
+
+- A next-intl namespace is a dotted path into the merged messages, so `landing.hero:body` is resolved by splitting the logical path across file namespace and JSON path (`landing.json` → `hero.body`), for `{locale}/{ns}.json` and single-file `nsInKey` layouts. Several owners are reported as `TRANSLATION_FILE_AMBIGUOUS` and are not auto-editable.
+- Patterns: `useTranslations`/`getTranslations`, `Promise.all` destructuring, aliases (`const tt = t`), `t.rich/raw/markup`, `getTranslations({ namespace })`, conditionals, same-file arrays/objects, `t` received as a prop and template keys (both resolved only when a value equals the on-screen text).
+- Translation-only edit needs a verified owning entry, not a confident AST mapping; source rewrite rules are unchanged. Diagnostics carry codes (`LOCALE_FILE_NOT_FOUND`, `TRANSLATION_KEY_NOT_FOUND`, `RUNTIME_FILE_MAPPING_MISMATCH`, ...). `localelens doctor --translations` is read-only.
+- Not supported: `t` passed across files other than via the text match above, keys built from variables with no literal edge, runtime-merged messages not present as files. The panel lists ambiguous candidates but has no picker yet.
 
 ## Not verified
 

@@ -130,7 +130,7 @@ export async function uninstall(f: Flags) {
 
 function installHint(d: Detection) {
   const add = { bun: "bun add -d", pnpm: "pnpm add -D", yarn: "yarn add -D", npm: "npm i -D" }[d.packageManager];
-  return `${add} @localelens/cli ${d.framework.startsWith("next") ? "@localelens/next" : "@localelens/vite"}   ${c.dim("(from your private registry or a local tarball)")}`;
+  return `${add} localelens ${d.framework.startsWith("next") ? "@localelens/next" : "@localelens/vite"}   ${c.dim("(from your private registry or a local tarball)")}`;
 }
 
 function printDetection(d: Detection) {
@@ -249,6 +249,7 @@ export async function doctor(f: Flags) {
       if (!vc) bad("vite.config.* not found", "Create one");
       else fs.readFileSync(path.join(root, vc), "utf8").includes("@localelens/vite") ? ok(`${vc} registers the LocaleLens plugin`) : bad(`${vc} does not register the plugin`, "Run `localelens init`");
     }
+    if (f.translations) failed += await translationChecks(root, cfg, ok, bad, warn);
     const sess = path.join(root, STATE_DIR, "session.json");
     if (!fs.existsSync(sess)) warn("agent not running (no session file)", "Start it with `localelens dev`");
     else {
@@ -265,6 +266,28 @@ export async function doctor(f: Flags) {
   }
   out(failed ? c.red(`\n${failed} problem(s) found.`) : c.green("\nAll checks passed."));
   return failed ? 1 : 0;
+}
+
+/** `doctor --translations`: read-only validation of workspaces, namespace ownership and referenced keys. */
+async function translationChecks(root: string, cfg: LocaleLensConfig, ok: (m: string) => void, bad: (m: string, fix: string) => void, warn: (m: string, fix: string) => void): Promise<number> {
+  let failed = 0;
+  const fail = (m: string, fix: string) => { failed++; bad(m, fix); };
+  const svc = new AgentService(root, cfg, new Logger("doctor"));
+  const r = await svc.translationReport();
+  out(c.bold(`
+Translations (${r.provider})`));
+  for (const w of r.workspaces) {
+    ok(`workspace "${w.id}": ${w.files} file(s), locales [${w.locales.join(", ")}], namespaces [${w.namespaces.slice(0, 12).join(", ")}${w.namespaces.length > 12 ? ", …" : ""}]`);
+    for (const f of w.invalid) fail(`${f}: invalid JSON structure`, "Fix the syntax error");
+  }
+  for (const a of r.ambiguous.slice(0, 20)) fail(`TRANSLATION_FILE_AMBIGUOUS: "${a.logical}" defined in workspaces ${a.workspaces.join(", ")}`, "Keep one owner; LocaleLens refuses to write ambiguous keys");
+  if (r.ambiguous.length > 20) out(c.dim(`    … ${r.ambiguous.length - 20} more`));
+  if (r.localeGaps.length) warn(`${r.localeGaps.length} key(s) missing in some locale (e.g. ${r.localeGaps.slice(0, 3).join(", ")})`, "Fill them in the Translations tab or export for translators");
+  for (const m of r.missingKeys.slice(0, 20)) fail(`TRANSLATION_KEY_NOT_FOUND: ${m.namespace}:${m.key} used at ${m.file}:${m.line}`, "Add the key to a locale file, or fix the namespace/key in the source");
+  if (r.missingKeys.length > 20) out(c.dim(`    … ${r.missingKeys.length - 20} more`));
+  if (!r.missingKeys.length) ok("every statically referenced key resolves to a locale file");
+  for (const e of r.parseErrors.slice(0, 5)) warn(`could not parse ${e}`, "Excluded from the key check");
+  return failed;
 }
 
 // ---------------------------------------------------------------- diff / undo

@@ -1,6 +1,6 @@
 # Troubleshooting
 
-Start with **DevTools → LocaleLens → Diagnostics → Run self-check**. It proves each hop and the first red step is the broken component. "Connected" only proves the token works. Also: `npx localelens doctor`.
+Start with **DevTools → LocaleLens → Diagnostics → Run self-check**. It proves each hop and the first red step is the broken component. "Connected" only proves the token works. Also: `npx localelens doctor`; for translation problems `npx localelens doctor --translations` (read-only; never rewrites files).
 
 | Self-check step fails | Cause → fix |
 |---|---|

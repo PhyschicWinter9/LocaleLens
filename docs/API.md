@@ -12,9 +12,9 @@ Errors: `{ "error": { "code", "message", "details?" }, "requestId" }`. Schemas l
 | `POST /diagnostics/clear` | clears both rings |
 | `GET /workspaces` · `GET /locales` | roots, patterns, namespaces, locales, opaque `fileId`s |
 | `GET /translations/list` | every key with per-locale values and `missing[]` |
-| `POST /translations/lookup` | `{ namespace?, key, workspaceId? }` → hits |
+| `POST /translations/lookup` | `{ namespace?, key, workspaceId? }` → hits. next-intl: `namespace.key` is split across file and JSON path; each hit carries `namespace`/`key` (file level), `jsonPath`, `locales[]` status and `writable` |
 | `POST /keys/suggest` | `{ text, namespace? }` → collision-free camelCase key |
-| `POST /source/resolve` | `{ ref:{fileId,n,fp}, text, attr? }` → `{ file, candidates[], ambiguous, suggested* }` |
+| `POST /source/resolve` | `{ ref:{fileId,n,fp}, text, attr? }` → `{ file, candidates[], ambiguous, suggested* }`. An `i18n-call` candidate has `translation`: `{ provider, logicalPath, lookup: verified|ambiguous|unresolved, runtimeMatch, hits[], code?, message?, canEditTranslation, canRewriteSource }`. Codes: `TRANSLATION_REFERENCE_UNRESOLVED`, `NAMESPACE_UNRESOLVED`, `LOCALE_FILE_NOT_FOUND`, `TRANSLATION_KEY_NOT_FOUND`, `TRANSLATION_FILE_AMBIGUOUS`, `RUNTIME_FILE_MAPPING_MISMATCH`, `TRANSLATION_EDIT_UNAVAILABLE`. Translation-only edit needs `lookup: verified` and does not rewrite source |
 | `POST /source/editor-url` | `{ fileId, line }` → `vscode://file/...` |
 | `GET /scan` | hardcoded strings + undefined keys |
 | `POST /changes/preview` | `{ mode: "edit"\|"extract", workspaceId, namespace, key, values{locale:text}, source?{ref,candidateId,text,attr?} }` → `{ operationId, changes[{file,kind,created,diff}], diagnostics[], expiresAt }` (nothing written; 10 min TTL) |
