@@ -1,8 +1,6 @@
 name: ci
 on:
   pull_request:
-  push:
-    branches: [dev] # main is covered by release.yml, which calls this workflow
   workflow_call: # pushes to main run it via release.yml (the gate), so there is no separate push trigger
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
