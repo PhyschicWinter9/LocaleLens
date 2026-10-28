@@ -1,5 +1,5 @@
 {
-  "name": "localelens",
+  "name": "@localelens/cli",
   "version": "0.6.0",
   "type": "module",
   "main": "dist/index.js",
@@ -30,9 +30,10 @@
     "@localelens/translation-excel": "workspace:*"
   },
   "license": "GPL-3.0-only",
-  "description": "CLI for LocaleLens: click text in your dev app to edit translations or extract hardcoded strings (React, Vite, Next.js). Personal project, provided as-is.",
+  "description": "CLI for LocaleLens: click text in your dev app to edit translations or extract hardcoded strings (React, Vite, Next.js).",
   "publishConfig": {
-    "access": "public"
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted"
   },
   "keywords": [
     "i18n",
@@ -44,5 +45,10 @@
     "devtools",
     "react-i18next",
     "next-intl"
-  ]
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PhyschicWinter9/LocaleLens.git",
+    "directory": "packages/cli"
+  }
 }

@@ -34,9 +34,9 @@ Works with **npm, pnpm and bun** (yarn is detected and gets the right command, b
 
 | | install | run the CLI |
 |---|---|---|
-| npm | `npm i -D localelens @localelens/vite` | `npx localelens init` · `npx localelens dev` |
-| pnpm | `pnpm add -D localelens @localelens/vite` | `pnpm exec localelens init` · `pnpm exec localelens dev` |
-| bun | `bun add -d localelens @localelens/vite` | `bunx localelens init` · `bunx localelens dev` |
+| npm | `npm i -D @localelens/cli @localelens/vite` | `npx localelens init` · `npx localelens dev` |
+| pnpm | `pnpm add -D @localelens/cli @localelens/vite` | `pnpm exec localelens init` · `pnpm exec localelens dev` |
+| bun | `bun add -d @localelens/cli @localelens/vite` | `bunx localelens init` · `bunx localelens dev` |
 
 `init` shows a diff and asks before changing anything; `dev` prints the agent URL and session token. `init` picks your package manager from the lockfile (`bun.lock`/`bun.lockb`, `pnpm-lock.yaml`, `yarn.lock`, `package-lock.json`) and prints the matching install command. To start the agent together with your dev server: `localelens dev -- bun run dev` (or `pnpm dev`, `npm run dev`).
 

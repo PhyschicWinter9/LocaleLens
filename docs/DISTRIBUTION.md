@@ -1,10 +1,10 @@
 # Distribution & release
 
-Three packages are published to npm; everything else in `packages/` is `private` and bundled into them.
+Three packages are published (privately) to GitHub Packages; everything else in `packages/` is `private` and bundled into them.
 
 | npm name | What |
 |---|---|
-| `localelens` | CLI (`npx localelens …`) |
+| `@localelens/cli` | CLI (command `localelens`) |
 | `@localelens/vite` | Dev-only Vite plugin |
 | `@localelens/next` | Dev-only Next.js integration (Turbopack + webpack) |
 
@@ -20,26 +20,14 @@ node scripts/verify-install.mjs   # installs the tarballs into throwaway project
 
 Install an unreleased build from tarballs:
 ```bash
-npm  i   -D ./localelens-0.6.0.tgz ./localelens-vite-0.6.0.tgz
-pnpm add -D ./localelens-0.6.0.tgz ./localelens-vite-0.6.0.tgz
-bun  add -d ./localelens-0.6.0.tgz ./localelens-vite-0.6.0.tgz
+npm  i   -D ./localelens-cli-0.6.0.tgz ./localelens-vite-0.6.0.tgz
+pnpm add -D ./localelens-cli-0.6.0.tgz ./localelens-vite-0.6.0.tgz
+bun  add -d ./localelens-cli-0.6.0.tgz ./localelens-vite-0.6.0.tgz
 ```
 
-## Publishing to npm
+## Publishing
 
-One-time setup:
-1. Create the npm scope: `@localelens` must be an npm **organization** (or your username) that you own. The names `localelens`, `@localelens/vite`, `@localelens/next` were unclaimed on npm when last checked.
-2. Add `repository`, `homepage` and `bugs` to the three `package.json` files once the repo URL exists (npm shows them on the package page).
-3. License is GPL-3.0-only (`LICENSE`, `license` field in each published `package.json`). If you ever want a different license, change both and tell contributors first.
-
-Each release:
-```bash
-bun run verify && bun run test:e2e          # all green
-bunx changeset && bunx changeset version     # bump versions + changelog
-node scripts/pack.mjs && node scripts/verify-install.mjs
-cd packages/vite && npm publish --access public   # then packages/next, then packages/cli
-```
-Publish `vite` and `next` first, then `localelens` (the CLI's `init` suggests installing them). Use `npm publish --dry-run` first to inspect the file list. Consider `--provenance` when publishing from CI.
+Private, via GitHub Packages and GitHub Releases, automated by Changesets and GitHub Actions. See [RELEASING.md](RELEASING.md) for setup, the release flow and recovery.
 
 Only `dist/`, `README.md`, `LICENSE` and `package.json` go into each tarball. The bundled `@localelens/*` internals are inlined, so no other `@localelens/*` package needs publishing. Third-party runtime dependencies (Babel, magic-string, jsonc-parser, zod, exceljs, fflate) are normal `dependencies`.
 

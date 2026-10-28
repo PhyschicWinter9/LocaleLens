@@ -1,0 +1,31 @@
+name: security
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 3 * * 1" # weekly: new advisories appear without code changes
+permissions:
+  contents: read
+concurrency:
+  group: security-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - name: Secret patterns in tracked files
+        run: |
+          if git grep -nIE -e '-----BEGIN [A-Z ]*PRIVATE KEY-----' -e 'ghp_[A-Za-z0-9]{36}' -e 'github_pat_[A-Za-z0-9_]{40,}' -e 'npm_[A-Za-z0-9]{36}' -e '_authToken\s*=\s*[^$[:space:]]' -- . ':!.github/workflows/security.yml' ':!scripts/release-check.mjs'; then
+            echo "::error::secret-like content is tracked"; exit 1
+          fi
+          if git ls-files | grep -E '(^|/)(\.env(\..*)?|session\.json|.*\.pem|.*\.key)$|(^|/)(\.keys|\.localelens|example)/'; then
+            echo "::error::forbidden file is tracked"; exit 1
+          fi
+      - name: Dependency advisories
+        run: bun audit --audit-level=high

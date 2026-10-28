@@ -130,7 +130,7 @@ export async function uninstall(f: Flags) {
 
 function installHint(d: Detection) {
   const add = { bun: "bun add -d", pnpm: "pnpm add -D", yarn: "yarn add -D", npm: "npm i -D" }[d.packageManager];
-  return `${add} localelens ${d.framework.startsWith("next") ? "@localelens/next" : "@localelens/vite"}   ${c.dim("(from your private registry or a local tarball)")}`;
+  return `${add} @localelens/cli ${d.framework.startsWith("next") ? "@localelens/next" : "@localelens/vite"}   ${c.dim("(from your private registry or a local tarball)")}`;
 }
 
 function printDetection(d: Detection) {

@@ -41,7 +41,7 @@ async function verify(pm) {
   let r = run(pm, cfg.install, dir);
   check(`${pm} install of project deps`, r.status === 0, r.stderr + r.stdout);
   check(`${pm} wrote ${cfg.lock} (so init can detect it)`, fs.existsSync(path.join(dir, cfg.lock)), fs.readdirSync(dir).join(", "));
-  r = run(pm, [...cfg.add, tgz("localelens-0"), tgz("localelens-vite")], dir);
+  r = run(pm, [...cfg.add, tgz("localelens-cli-0"), tgz("localelens-vite")], dir);
   check(`${pm} install of LocaleLens tarballs`, r.status === 0, r.stderr + r.stdout);
 
   const ll = (...a) => run(cfg.exec[0], [...cfg.exec.slice(1), "localelens", ...a], dir); // the way users run it: npx / pnpm exec / bunx

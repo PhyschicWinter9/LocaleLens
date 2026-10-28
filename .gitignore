@@ -13,3 +13,5 @@ packages/*/dist
 apps/.demo
 packages/*/LICENSE
 release
+release-out
+example

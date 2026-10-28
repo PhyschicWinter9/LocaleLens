@@ -1,4 +1,4 @@
-import { rpc, RpcError } from "./common.ts";
+import { rpc, RpcError, VERSION } from "./common.ts";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const esc = (s: unknown) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
@@ -34,6 +34,9 @@ async function refresh() {
   ];
   $("info").innerHTML = rows.map(([k, v]) => `<div><span class="muted">${esc(k)}</span><span>${esc(v)}</span></div>`).join("");
   if (!st.connected && st.reason && st.agentUrl) showError(st.reason);
+  // 0.x: a minor bump may change the protocol, so major.minor must match
+  const mm = (v: string) => v.split(".").slice(0, 2).join(".");
+  if (st.connected && mm(st.version) !== mm(VERSION)) showError(`Agent v${st.version} and extension v${VERSION} are incompatible. Install matching versions.`);
   await checkSite();
 }
 

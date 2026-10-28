@@ -12,7 +12,11 @@
     "test:e2e": "playwright test",
     "build": "node scripts/build-packages.mjs && node packages/extension/build.mjs",
     "verify": "bun run typecheck && bun run test && bun run build",
-    "demo": "node scripts/demo.mjs"
+    "demo": "node scripts/demo.mjs",
+    "version-packages": "changeset version && node scripts/sync-versions.mjs && bun install --lockfile-only",
+    "release:check": "node scripts/release-check.mjs",
+    "release:artifacts": "node scripts/release-artifacts.mjs",
+    "release:publish": "changeset publish"
   },
   "devDependencies": {
     "@babel/parser": "^8.0.8",

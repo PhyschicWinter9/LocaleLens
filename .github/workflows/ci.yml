@@ -1,20 +1,71 @@
 name: ci
-on: [push, pull_request]
+on:
+  pull_request:
+  workflow_call: # pushes to main run it via release.yml (the gate), so there is no separate push trigger
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+permissions:
+  contents: read # forked PRs get a read-only token and no secrets
+
+env:
+  BUN_CACHE: ~/.bun/install/cache
+
 jobs:
   verify:
+    name: typecheck · unit · build · release-check
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with: { node-version: 24 }
+      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with: { path: "${{ env.BUN_CACHE }}", key: "bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}", restore-keys: "bun-${{ runner.os }}-" }
       - run: bun install --frozen-lockfile
+      # No linter is configured in this repo; strict TypeScript 7 is the static check.
       - run: bun run typecheck
-      - run: node scripts/build-packages.mjs && node packages/extension/build.mjs
-      - run: bunx vitest run
+      - run: bun run build
+      - run: bunx vitest run # unit + integration (CLI tests spawn the built dist/bin.js)
+      - run: node scripts/release-check.mjs # versions, MV3 manifest, package set, tracked-file + tarball allowlists
+
+  e2e:
+    name: browser e2e (Chromium + extension)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version: 24 }
+      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with: { path: "${{ env.BUN_CACHE }}", key: "bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}", restore-keys: "bun-${{ runner.os }}-" }
+      - run: bun install --frozen-lockfile
+      - run: bun run build
       - run: bunx playwright install --with-deps chromium
       - run: xvfb-run -a bunx playwright test
+
+  package:
+    name: pack · install (npm/pnpm/bun) · release assets
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version: 24 }
+      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with: { path: "${{ env.BUN_CACHE }}", key: "bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}", restore-keys: "bun-${{ runner.os }}-" }
+      - run: bun install --frozen-lockfile
       - run: npm i -g pnpm@10
-      - run: node scripts/pack.mjs && node scripts/verify-install.mjs   # npm, pnpm and bun
-      - uses: actions/upload-artifact@v4
-        with: { name: release, path: release/ }
+      - run: node scripts/pack.mjs
+      # installs the tarballs into throwaway projects: CLI runs, init/doctor, dev instrumentation, clean production build (isolation)
+      - run: node scripts/verify-install.mjs
+      - run: node scripts/release-check.mjs
+      - run: node scripts/release-artifacts.mjs && node scripts/release-artifacts.mjs --verify
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with: { name: release-out, path: release-out/, retention-days: 14 }

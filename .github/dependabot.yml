@@ -1,0 +1,17 @@
+version: 2
+updates:
+  # Only the repo root (workspaces included). Nothing under example/ is a workspace or is updated.
+  - package-ecosystem: bun
+    directory: /
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 10
+    labels: [dependencies]
+    groups:
+      minor-and-patch: { update-types: [minor, patch] }
+    # Major bumps arrive as separate, ungrouped PRs. Nothing auto-merges: CI + a human review are required.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+    labels: [dependencies, ci]
+    groups:
+      actions: { patterns: ["*"] }

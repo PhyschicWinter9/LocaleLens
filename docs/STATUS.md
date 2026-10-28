@@ -12,7 +12,7 @@ Last full verification: 2026-10-28, Windows 10, Node 24.11, Bun 1.4.3, Chromium 
 | TODO/FIXME in source | 0 |
 | Mutation spot-checks (disable Host check / token compare / path containment → tests fail) | detected; restored |
 
-The CI workflow (`.github/workflows/ci.yml`) has **not been run** on a CI machine.
+The CI, release and security workflows (`.github/workflows/`) have **not been run** on GitHub. Locally verified (2026-10-28): YAML parse, `release-check` (pass, plus planted `.map`/private-key file in a tarball is rejected), `release-artifacts` + `--verify` (pass; tampered zip rejected), `changeset version` + `sync-versions` in a scratch copy (0.6.0 -> 0.7.0, changelogs, extension manifest and `VERSION` constants in sync). `--registry` scope check fails by design until the repo owner is `localelens`.
 
 ## Required scenarios (spec §18)
 

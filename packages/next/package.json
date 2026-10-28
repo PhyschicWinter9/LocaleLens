@@ -25,7 +25,8 @@
   "license": "GPL-3.0-only",
   "description": "Dev-only Next.js (Turbopack + webpack) integration for LocaleLens: tags JSX text with source references. No effect on production builds.",
   "publishConfig": {
-    "access": "public"
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted"
   },
   "keywords": [
     "i18n",
@@ -40,5 +41,10 @@
   ],
   "engines": {
     "node": ">=22.18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PhyschicWinter9/LocaleLens.git",
+    "directory": "packages/next"
   }
 }

@@ -1,0 +1,71 @@
+name: release
+# push to main: CI gate, then either (a) open/update the Version PR when changesets are pending, or
+# (b) publish + create the GitHub Release when the Version PR has been merged (no pending changesets).
+# workflow_dispatch: maintainers re-run (b); `publish: false` is a dry run that only builds and uploads the assets.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      detect:
+    needs: ci
+    runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.d.outputs.release }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0, persist-credentials: false }
+      # Release only when no changesets are pending (Version PR merged) and v<version> has not been released yet.
+      # Ordinary commits therefore never reach the approval-gated publish job.
+      - id: d
+        run: |
+          n=$(ls .changeset/*.md 2>/dev/null | grep -vc 'README.md' || true)
+          v=$(node -p "require('./packages/cli/package.json').version")
+          if [ "$n" != 0 ]; then echo "::notice::$n pending changeset(s): Version PR comes first"; r=false
+          elif [ "$GITHUB_EVENT_NAME" = push ] && git ls-remote --exit-code --tags origin "refs/tags/v$v" >/dev/null 2>&1; then echo "::notice::v$v already released"; r=false
+          else r=true; fi
+          echo "release=$r" >> "$GITHUB_OUTPUT"
+
+  publish:
+    needs: [ci, detect]
+    if: github.ref == 'refs/heads/main' && needs.detect.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: release # add required reviewers here: the manual approval gate
+    permissions:
+      contents: write # tags + GitHub Release
+      packages: write # GitHub Packages
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 }
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          registry-url: https://npm.pkg.github.com
+      - run: bun install --frozen-lockfile && npm i -g pnpm@10
+      - name: Build, validate, assemble assets
+        run: |
+          node scripts/pack.mjs
+          node scripts/release-check.mjs --registry   # fails if the npm scope != repository owner
+          node scripts/verify-install.mjs
+          node scripts/release-artifacts.mjs && node scripts/release-artifacts.mjs --verify
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with: { name: release-out, path: release-out/, retention-days: 30 }
+      - name: Publish to GitHub Packages, idempotent because changeset publish skips versions already on the registry
+        if: (github.event_name == 'push' || inputs.publish)
+        run: bun run release:publish && git push origin --tags
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: GitHub Release (create once; a retry only re-uploads assets)
+        if: (github.event_name == 'push' || inputs.publish)
+        run: |
+          v=$(node -p "require('./packages/cli/package.json').version"); tag="v$v"
+          pre=""; case "$v" in *-*) pre="--prerelease";; esac
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" release-out/* --clobber
+          else
+            gh release create "$tag" release-out/* --target "$GITHUB_SHA" --title "$tag" --generate-notes $pre
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
