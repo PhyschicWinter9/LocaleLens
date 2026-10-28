@@ -81,7 +81,7 @@ function App() {
       const r = await api("POST", "/source/resolve", { ref, text, attr });
       setRes(r); setResState("ok");
       plog("INFO", "source.resolve.completed", { data: { candidates: r.candidates.length, ambiguous: r.ambiguous } });
-      const pick = r.candidates.find((c: any) => c.id === preferCand) ?? r.candidates.find((c: any) => c.confidence !== "low") ?? null;
+      const pick = r.candidates.find((c: any) => c.id === preferCand) ?? r.candidates.find((c: any) => c.confidence !== "low") ?? (r.candidates.filter((c: any) => c.translation?.canEditTranslation).length === 1 ? r.candidates.find((c: any) => c.translation?.canEditTranslation) : null) ?? null;
       if (pick) await choose(r, pick, ref, text, attr, forced);
     } catch (e) {
       setResState("fail"); setResErr(errText(e));
@@ -93,14 +93,16 @@ function App() {
     setCandId(c.id); setPreview(null); setResult(null); setErr("");
     const sourceLocale = conn?.sourceLocale ?? "en";
     if (c.kind === "i18n-call" && c.key) {
-      let wsId = r.suggestedWorkspaceId ?? workspaces[0]?.id ?? "";
-      let values: Record<string, string> = c.values ?? {};
-      try {
-        const lk = await api("POST", "/translations/lookup", { namespace: c.namespace, key: c.key });
-        if (lk.hits[0]) { wsId = lk.hits[0].workspaceId; values = lk.hits[0].values; }
-      } catch { /* keep suggestion */ }
-      plog("INFO", "translation.loaded", { data: { key: c.key } });
-      setForm({ mode: "edit", workspaceId: wsId, namespace: c.namespace, key: c.key, values, existing: Object.keys(values).length > 0 });
+      // translation-only edit: needs a verified owning file entry, never a source rewrite
+      const hits = c.translation?.hits ?? [];
+      if (hits.length === 1) {
+        const h = hits[0];
+        plog("INFO", "translation.loaded", { data: { key: h.key, namespace: h.namespace, code: c.translation?.code } });
+        setForm({ mode: "edit", workspaceId: h.workspaceId, namespace: h.namespace, key: h.key, values: h.values, existing: true });
+      } else {
+        plog("WARN", "translation.edit_unavailable", { errorCode: c.translation?.code, data: { key: c.key, hits: hits.length } });
+        setForm(null);
+      }
     } else if (c.canExtract) {
       setForm({
         mode: "extract", workspaceId: r.suggestedWorkspaceId ?? workspaces[0]?.id ?? "", namespace: r.suggestedNamespace ?? "common",
@@ -240,12 +242,13 @@ function App() {
                     {valueHits.map((e) => <div key={e.workspaceId + e.namespace + e.key}><button onClick={() => loadFromTranslation(e)}><span class="mono">{e.namespace}:{e.key}</span></button></div>)}</div>}
                   {res?.extractBlocked && <div class="alert warn">{res.extractBlocked}</div>}
                   {res?.ambiguous && <div class="alert warn">Several occurrences in this element match. Pick the right one; LocaleLens will not guess.</div>}
+                  {res && <TranslationDetails cand={res.candidates.find((c: any) => c.id === candId)} />}
                   {res && <div class="stack" role="radiogroup" aria-label="Source occurrences">{res.candidates.map((c: any) => (
                     <div key={c.id} class="cand" role="radio" tabIndex={0} aria-checked={c.id === candId}
                       onClick={() => choose(res, c, parseRef(sel.ref), sel.text, sel.attr)} onKeyDown={(k) => (k.key === "Enter" || k.key === " ") && choose(res, c, parseRef(sel.ref), sel.text, sel.attr)}>
                       <span class={"badge " + (c.confidence === "exact" ? "ok" : c.confidence === "pattern" ? "" : "warn")}>{c.confidence}</span>
-                      <div><div>{c.kind === "i18n-call" ? <><span class="mono">{c.namespace}:{c.key}</span> <span class="muted">→ {c.text || "(no value)"}</span></> : (c.template ?? c.text)}</div>
-                        <div class="why">{c.kind}{c.attr ? ` · ${c.attr}` : ""} · {c.file ? `${c.file}:` : "line "}{c.line}{c.kind === "i18n-call" ? " · already translated" : c.canExtract ? " · extractable" : ""}{c.reason ? ` · ${c.reason}` : ""}</div></div>
+                      <div><div>{c.kind === "i18n-call" ? <><span class="mono">{c.namespace}:{c.key ?? "?"}</span> <span class="muted">→ {c.text || (c.translation?.code ?? "no value")}</span></> : (c.template ?? c.text)}</div>
+                        <div class="why">{c.kind}{c.attr ? ` · ${c.attr}` : ""} · {c.file ? `${c.file}:` : "line "}{c.line}{c.kind === "i18n-call" ? (c.translation?.canEditTranslation ? " · translation editable" : " · translation not editable") : c.canExtract ? " · extractable" : ""}{c.reason ? ` · ${c.reason}` : ""}</div></div>
                     </div>))}</div>}
                   <div class="row"><button onClick={openEditor} disabled={!res}>Open source in editor</button></div>
                 </>}
@@ -255,7 +258,7 @@ function App() {
               {form ? <FormCard form={form} setForm={(f: Form) => { setForm(f); setPreview(null); }} workspaces={workspaces} locales={locales} nsLocked={nsLocked}
                 busy={busy} onPreview={doPreview} onSuggest={async () => {
                   const t = form.values[conn?.sourceLocale ?? "en"] ?? ""; try { const s = await api("POST", "/keys/suggest", { text: t, namespace: form.namespace }); setForm({ ...form, key: s.key }); } catch (e) { setErr(errText(e)); }
-                }} /> : <Empty>{sel && !resErr && resState !== "resolving" ? "This occurrence cannot be edited automatically. See the reason on the left; edit the source manually." : "Select text to edit its translation."}</Empty>}
+                }} /> : <Empty>{sel && !resErr && resState !== "resolving" ? (cand?.translation?.code ? `TRANSLATION_EDIT_UNAVAILABLE: ${cand.translation.code}. ${cand.translation.message ?? ""}` : "This occurrence cannot be edited automatically. See the reason on the left; edit the source manually.") : "Select text to edit its translation."}</Empty>}
               {preview && <PreviewCard preview={preview} busy={busy} onCommit={doCommit} onCancel={() => setPreview(null)} />}
               {result && !result.undone && (
                 <div class={"alert " + (result.verified ? "ok" : "err")} role="status">
@@ -337,3 +340,20 @@ function PreviewCard({ preview, busy, onCommit, onCancel }: any) {
 }
 
 render(<App />, document.getElementById("app")!);
+
+/** Why a reference resolved (or not): provider, logical path, each owning file and per-locale status. */
+function TranslationDetails({ cand }: { cand?: any }) {
+  const tr = cand?.translation;
+  if (!tr) return null;
+  return (
+    <div class="alert" aria-label="Translation resolution">
+      <div><b>{tr.provider}</b> · lookup <b>{tr.lookup}</b> · on-screen <b>{tr.runtimeMatch}</b> · source <b>{cand.confidence}</b>{tr.code && <> · <span class="mono">{tr.code}</span></>}</div>
+      {tr.logicalPath && <div class="muted">path <span class="mono">{tr.logicalPath}</span> · edit {tr.canEditTranslation ? "available" : "unavailable"}</div>}
+      {tr.message && <div class="muted">{tr.message}</div>}
+      {tr.hits.map((h: any) => (
+        <div key={h.workspaceId + h.namespace + h.key} class="muted"><span class="mono">{h.workspaceId}:{h.namespace} → {h.jsonPath}</span>
+          {h.locales.map((l: any) => <div key={l.locale}><span class="mono">{l.locale}</span> {l.status}{l.file ? ` · ${l.file}` : ""}</div>)}</div>
+      ))}
+    </div>
+  );
+}

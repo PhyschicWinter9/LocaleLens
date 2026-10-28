@@ -20,9 +20,9 @@ node scripts/verify-install.mjs   # installs the tarballs into throwaway project
 
 Install an unreleased build from tarballs:
 ```bash
-npm  i   -D ./localelens-cli-0.6.0.tgz ./localelens-vite-0.6.0.tgz
-pnpm add -D ./localelens-cli-0.6.0.tgz ./localelens-vite-0.6.0.tgz
-bun  add -d ./localelens-cli-0.6.0.tgz ./localelens-vite-0.6.0.tgz
+npm  i   -D ./localelens-cli-0.7.0.tgz ./localelens-vite-0.7.0.tgz
+pnpm add -D ./localelens-cli-0.7.0.tgz ./localelens-vite-0.7.0.tgz
+bun  add -d ./localelens-cli-0.7.0.tgz ./localelens-vite-0.7.0.tgz
 ```
 
 ## Publishing

@@ -25,9 +25,17 @@ export interface RawCandidate {
   /** Unresolved `x.<prop>` reference: the agent searches other files for `<prop>: ...` definitions. */
   lookupProp?: string;
   lookupAsKey?: boolean;
+  /** Namespace came from the call site (`useTranslations("x")`, `ns:key`), not the configured default. */
+  nsExplicit?: boolean;
+  /** `t` is a function parameter (props): namespace unknown, the agent resolves by key + on-screen text. */
+  viaParam?: boolean;
+  /** Template key with expressions (`${mode}.cta`): literal prefix / suffix around them. */
+  dynKey?: { prefix: string; suffix: string };
 }
 
-export interface TBinding { name: string; namespace: string | null; keyPrefix?: string }
+export interface TBinding { name: string; namespace: string | null; keyPrefix?: string; viaParam?: boolean }
+const T_METHODS = new Set(["rich", "raw", "markup"]);
+const T_LIKE = /^(t|tr|translate|t[A-Z]w*|w+T)$/;
 
 export interface EnumOpts {
   /** Names of functions that produce a `t` (useTranslation, useTranslations, getTranslations, ...). */
@@ -106,6 +114,11 @@ export function findTBinding(path: NodePath, name: string, opts: EnumOpts): TBin
   const binding = path.scope.getBinding(name);
   if (!binding) return null;
   const bp = binding.path;
+  if (binding.kind === "param" && T_LIKE.test(name)) return { name, namespace: null, viaParam: true };
+  if (bp.isVariableDeclarator() && bp.node.id.type === "Identifier" && bp.node.init?.type === "Identifier" && bp.node.init.name !== name) {
+    const inner = findTBinding(bp, bp.node.init.name, opts); // const tt = t;
+    return inner && { ...inner, name };
+  }
   if (bp.isVariableDeclarator()) {
     let init: t.Node | null | undefined = bp.node.init;
     if (init?.type === "AwaitExpression") init = init.argument;
@@ -133,7 +146,9 @@ export function findTBinding(path: NodePath, name: string, opts: EnumOpts): TBin
     let ns: string | null = null;
     let keyPrefix: string | undefined;
     if (a0 && a0.type === "StringLiteral") ns = a0.value;
-    else if (a0 && a0.type === "ArrayExpression" && a0.elements[0]?.type === "StringLiteral") ns = a0.elements[0].value;
+    else if (a0?.type === "ObjectExpression") { // getTranslations({ locale, namespace: "x" })
+      for (const pr of a0.properties) if (pr.type === "ObjectProperty" && pr.key.type === "Identifier" && pr.key.name === "namespace" && pr.value.type === "StringLiteral") ns = pr.value.value;
+    } else if (a0 && a0.type === "ArrayExpression" && a0.elements[0]?.type === "StringLiteral") ns = a0.elements[0].value;
     const a1 = init.arguments[1];
     if (a1?.type === "ObjectExpression") {
       for (const pr of a1.properties) if (pr.type === "ObjectProperty" && pr.key.type === "Identifier" && pr.key.name === "keyPrefix" && pr.value.type === "StringLiteral") keyPrefix = pr.value.value;
@@ -167,28 +182,43 @@ function addAttrCandidates(el: NodePath<t.JSXElement>, out: RawCandidate[], opts
       if (wrapped) out[out.length - 1].range = [valNode.start!, valNode.end!];
       continue;
     }
-    if (valNode.type === "CallExpression" && valNode.callee.type === "Identifier") {
+    if (valNode.type === "CallExpression") {
       const c = i18nCall(el, valNode, opts);
       if (c) push({ ...c, attr });
     }
   }
 }
 
+/** `t(...)`, `t.rich(...)`, `t.raw(...)`, `t.markup(...)`: the identifier that holds `t`, or null. */
+function tCallee(call: t.CallExpression): string | null {
+  const c = call.callee;
+  if (c.type === "Identifier") return c.name;
+  if (c.type === "MemberExpression" && !c.computed && c.object.type === "Identifier" && c.property.type === "Identifier" && T_METHODS.has(c.property.name)) return c.object.name;
+  return null;
+}
+
 function i18nCall(path: NodePath, call: t.CallExpression, opts: EnumOpts): Omit<RawCandidate, "id"> | null {
-  if (call.callee.type !== "Identifier") return null;
-  const tb = findTBinding(path, call.callee.name, opts);
+  const calleeName = tCallee(call);
+  if (!calleeName) return null;
+  const tb = findTBinding(path, calleeName, opts);
   if (!tb) return null;
   const a0 = call.arguments[0];
   const loc = call.loc!.start;
+  const base = { kind: "i18n-call" as const, text: "", line: loc.line, column: loc.column, canExtract: false, matcher: null, viaParam: tb.viaParam };
   if (!a0 || (a0.type !== "StringLiteral" && !(a0.type === "TemplateLiteral" && a0.expressions.length === 0))) {
-    return { kind: "i18n-call", text: "", line: loc.line, column: loc.column, canExtract: false, reason: "Dynamic translation key cannot be resolved statically", matcher: null };
+    if (a0?.type === "TemplateLiteral") { // `${mode}.cta`: keep the literal edges so the agent can match by text
+      const prefix = a0.quasis[0].value.cooked ?? "", suffix = a0.quasis[a0.quasis.length - 1].value.cooked ?? "";
+      return { ...base, namespace: tb.namespace ?? opts.defaultNamespace, nsExplicit: tb.namespace !== null, dynKey: { prefix, suffix }, reason: "Dynamic translation key: resolved by on-screen text" };
+    }
+    return { ...base, reason: "Dynamic translation key cannot be resolved statically" };
   }
   let key = literalString(a0)!;
   let ns = tb.namespace ?? opts.defaultNamespace;
+  let nsExplicit = tb.namespace !== null;
   const m = /^([^:]+):(.+)$/.exec(key);
-  if (m) { ns = m[1]; key = m[2]; }
+  if (m) { ns = m[1]; key = m[2]; nsExplicit = true; }
   if (tb.keyPrefix) key = tb.keyPrefix + "." + key;
-  return { kind: "i18n-call", text: "", key, namespace: ns, line: loc.line, column: loc.column, canExtract: false, matcher: null };
+  return { ...base, key, namespace: ns, nsExplicit };
 }
 
 
@@ -258,11 +288,12 @@ function flatChildren(children: t.JSXElement["children"]): t.JSXElement["childre
   return out;
 }
 
-function addStringLeaves(n: t.Node, push: (c: Omit<RawCandidate, "id">) => void) {
+function addStringLeaves(n: t.Node, push: (c: Omit<RawCandidate, "id">) => void, call?: (c: t.CallExpression) => Omit<RawCandidate, "id"> | null) {
   // {cond ? "A" : "B"}, {x && "A"}, {x || "A"}
-  if (n.type === "ConditionalExpression") { addStringLeaves(n.consequent, push); addStringLeaves(n.alternate, push); return; }
-  if (n.type === "LogicalExpression") { addStringLeaves(n.right, push); if (n.operator !== "&&") addStringLeaves(n.left, push); return; }
-  if (n.type === "ParenthesizedExpression") { addStringLeaves(n.expression, push); return; }
+  if (n.type === "ConditionalExpression") { addStringLeaves(n.consequent, push, call); addStringLeaves(n.alternate, push, call); return; }
+  if (n.type === "LogicalExpression") { addStringLeaves(n.right, push, call); if (n.operator !== "&&") addStringLeaves(n.left, push, call); return; }
+  if (n.type === "ParenthesizedExpression") { addStringLeaves(n.expression, push, call); return; }
+  if (n.type === "CallExpression") { const c = call?.(n); if (c) push(c); return; }
   const s = literalString(n);
   if (s !== null && s.trim()) {
     push({
@@ -338,7 +369,7 @@ export function enumerateCandidates(el: NodePath<t.JSXElement>, code: string, op
       if (e.type === "JSXEmptyExpression") continue;
       const lit = literalString(e);
       if (lit !== null) { run.push({ node: c, kind: "static-expr", raw: lit }); continue; }
-      if (e.type === "CallExpression" && e.callee.type === "Identifier") {
+      if (e.type === "CallExpression") {
         const call = i18nCall(el, e, opts);
         if (call) {
           flush();
@@ -350,7 +381,7 @@ export function enumerateCandidates(el: NodePath<t.JSXElement>, code: string, op
       }
       if (e.type === "ConditionalExpression" || e.type === "LogicalExpression") {
         flush();
-        addStringLeaves(e, push);
+        addStringLeaves(e, push, (x) => i18nCall(el, x, opts));
         continue;
       }
       if (e.type === "MemberExpression" && children.every((x) => x === c || (x.type === "JSXText" && !x.value.trim()))) {

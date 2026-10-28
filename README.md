@@ -58,7 +58,7 @@ The extension ID is pinned (`jppgenfhanihnnjhghjfoldgdjhklloa`) and is the only 
 | `localelens init` | Detect + configure (diff, approval, backup) |
 | `localelens dev [-- cmd]` | Start the agent (optionally run your dev server alongside) |
 | `localelens uninstall` | Remove what `init` added (config, plugin wiring, ignore entry); keeps translations and backups, prints the package-removal command (`--dry-run`, `--yes`) |
-| `localelens doctor` | Diagnose setup with actionable fixes (`--mui` also reports MUI packages) |
+| `localelens doctor` | Diagnose setup with actionable fixes. `--mui` also reports MUI packages; `--translations` runs a read-only check of workspaces, namespace ownership (ambiguous owners), invalid files, locale gaps and referenced keys that resolve to no file |
 | `localelens scan` | List hardcoded strings and keys used but undefined (`--json`) |
 | `localelens check` | CI gate: missing keys/locales, placeholder mismatches (`--hardcoded`) |
 | `localelens diff [id]` / `undo [id]` | Inspect / safely revert a transaction (`undo --recover` after a crash) |
@@ -66,7 +66,7 @@ The extension ID is pinned (`jppgenfhanihnnjhghjfoldgdjhklloa`) and is the only 
 
 ## Supported
 
-React + Vite, Next.js Pages Router, App Router and hybrid projects, Next 16 Turbopack and webpack; JS/TS/JSX/TSX; react-i18next, next-i18next (hook import), next-intl; JSON/JSONC locale files in any number of independent roots. With next-intl, extraction keeps Server Components valid: route files (`page`, `layout`, ...) and already-async components get `await getTranslations`, other sync components get `useTranslations` without becoming async or client components; react-i18next in a Server Component is refused with an explanation. Limits are listed honestly in [docs/STATUS.md](docs/STATUS.md).
+React + Vite, Next.js Pages Router, App Router and hybrid projects, Next 16 Turbopack and webpack; JS/TS/JSX/TSX; react-i18next, next-i18next (hook import), next-intl; JSON/JSONC locale files in any number of independent roots. With next-intl, extraction keeps Server Components valid: route files (`page`, `layout`, ...) and already-async components get `await getTranslations`, other sync components get `useTranslations` without becoming async or client components; react-i18next in a Server Component is refused with an explanation. With next-intl, a namespace such as `landing.hero` is resolved as a path into the merged messages (`landing.json` → `hero.body`), so editing an existing translation works from a verified file entry even when the on-screen text does not match exactly. Limits are listed honestly in [docs/STATUS.md](docs/STATUS.md).
 
 ## Develop LocaleLens
 

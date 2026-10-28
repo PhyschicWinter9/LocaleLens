@@ -20,7 +20,7 @@ Then install the LocaleLens browser extension (Chrome / Edge, Manifest V3). It i
 2. Open `chrome://extensions` (or `edge://extensions`), enable **Developer mode**, click **Load unpacked** and pick the unzipped folder.
 3. Paste the token from `npx localelens dev` in the extension popup, open DevTools and use the **LocaleLens** tab.
 
-Commands: `init`, `dev [-- your dev command]`, `doctor`, `scan`, `check`, `diff`, `undo`, `export`, `import`. Run `npx localelens help`.
+Commands: `init`, `dev [-- your dev command]`, `doctor [--mui] [--translations]`, `scan`, `check`, `diff`, `undo`, `export`, `import`. Run `npx localelens help`.
 
 Works with react-i18next, next-i18next and next-intl; JSON/JSONC locale files; Vite and Next.js (Pages, App, hybrid; Turbopack and webpack). Development mode only: nothing is added to production builds. Requires Node ≥ 22.18.
 

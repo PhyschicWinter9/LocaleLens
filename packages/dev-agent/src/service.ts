@@ -2,7 +2,7 @@ import fsp from "node:fs/promises";
 import path from "node:path";
 import {
   LlError, Logger, randomId, shortHash, toPosix, unifiedDiff, resolveInside, isInside,
-  type LocaleLensConfig, type PreviewReq, type PreviewRes, type ResolveRes, type Candidate, type I18nAdapter,
+  type LocaleLensConfig, type TranslationInfo, type TranslationHit, type PreviewReq, type PreviewRes, type ResolveRes, type Candidate, type I18nAdapter,
 } from "@localelens/core";
 import { DEFAULT_ENUM, enumerateCandidates, extract, fileIdOf, findConfigDefs, fingerprint, load, normalizeWs, suggestKey, SUPPORTED_EXT, type EnumOpts, type RawCandidate } from "@localelens/ast-engine";
 import { FileWriter, type PlannedFile } from "@localelens/file-writer";
@@ -139,28 +139,85 @@ export class AgentService {
     return this.cfg.defaultNamespace;
   }
 
+  /** Logical lookup shared by resolve, scan, lookup and doctor. */
+  async resolveRef(ns: string | undefined, key: string, nsExplicit = true, only?: string): Promise<{ hits: TranslationHit[]; logical: string }> {
+    if (this.adapter.id === "next-intl") {
+      const logical = nsExplicit && ns ? `${ns}.${key}` : key;
+      return { hits: await this.registry.resolveLogical(logical, only), logical };
+    }
+    const n = ns ?? this.cfg.defaultNamespace;
+    const hits = (await this.registry.findKey(n, key, only)).map((h) => this.hitOf(h, n, key));
+    return { hits, logical: `${n}:${key}` };
+  }
+  private hitOf(h: { workspaceId: string; values: Record<string, string> }, namespace: string, key: string): TranslationHit {
+    return { workspaceId: h.workspaceId, values: h.values, namespace, key, jsonPath: key, locales: Object.entries(h.values).map(([locale, value]) => ({ locale, file: "", status: "found", value })), writable: this.registry.ws(h.workspaceId).writable !== false };
+  }
+
+  /** Resolve an i18n-call to its owning file entries. Each failure carries the code of the stage that failed. */
+  private async resolveTranslation(c: RawCandidate, text: string): Promise<TranslationInfo> {
+    const provider = this.adapter.id;
+    let hits: TranslationHit[] = [];
+    let logical: string | undefined;
+    let code: string | undefined;
+    let message: string | undefined;
+    if (c.key) {
+      const r = await this.resolveRef(c.namespace, c.key, c.nsExplicit !== false);
+      hits = r.hits; logical = r.logical;
+      if (!hits.length) {
+        const exists = provider === "next-intl" ? await this.registry.anyFileFor(logical) : (await Promise.all(this.registry.workspaces.map((w) => this.registry.namespaces(w)))).flat().includes(c.namespace ?? "");
+        code = exists ? "TRANSLATION_KEY_NOT_FOUND" : "LOCALE_FILE_NOT_FOUND";
+        message = exists ? `No locale file defines "${logical}"` : `No locale file found for "${logical}"`;
+      }
+    } else { code = "TRANSLATION_REFERENCE_UNRESOLVED"; message = c.reason; }
+
+    // no static owner (props, dynamic keys): accept only entries whose value equals the on-screen text
+    if (!hits.length && text && (c.viaParam || c.dynKey)) {
+      const pre = c.dynKey?.prefix ?? "", suf = c.dynKey?.suffix ?? "";
+      const want = normalizeWs(text);
+      const found = await this.registry.searchLogical((p) => (c.key ? p === c.key || p.endsWith("." + c.key) : p.startsWith(pre) && p.endsWith(suf)));
+      for (const e of found.filter((e) => Object.values(e.values).some((v) => normalizeWs(v) === want))) {
+        // re-resolve for per-locale file status; next-intl logical paths round-trip through resolveLogical
+        const full = provider === "next-intl" ? (await this.registry.resolveLogical(e.logical, e.workspaceId)).filter((h) => h.namespace === e.namespace && h.key === e.key) : [];
+        hits.push(...(full.length ? full : [this.hitOf(e, e.namespace, e.key)]));
+      }
+      if (hits.length) { code = undefined; message = "Resolved by key and on-screen text (no static namespace)"; }
+      else if (c.viaParam) { code = "NAMESPACE_UNRESOLVED"; message = "Translation function is a parameter: namespace unknown and no entry matches the on-screen text"; }
+    }
+
+    let runtimeMatch: TranslationInfo["runtimeMatch"] = "unknown";
+    if (hits.length === 1 && text) {
+        const asRe = (v: string) => new RegExp("^" + v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\\\{\\\{[^}]*\\\}\\\}|\\\{[^}]*\\\}/g, ".+?") + "$");
+      runtimeMatch = Object.values(hits[0].values).some((v) => asRe(normalizeWs(v)).test(text)) ? "match" : "mismatch";
+      if (runtimeMatch === "mismatch") { code = "RUNTIME_FILE_MAPPING_MISMATCH"; message = "The resolved translation differs from the text on screen (rich text, runtime merge or another locale). Editing is still allowed."; }
+    }
+    if (hits.length > 1) { code = "TRANSLATION_FILE_AMBIGUOUS"; message = `${hits.length} locale entries define this reference; pick one`; }
+    const lookup = hits.length === 1 ? "verified" : hits.length > 1 ? "ambiguous" : "unresolved";
+    const canEdit = lookup === "verified" && hits[0].writable;
+    if (lookup === "verified" && !hits[0].writable) { code = "TRANSLATION_EDIT_UNAVAILABLE"; message = "Workspace is read-only"; }
+    this.log.info("translation.resolve", { correlationId: randomId(6), errorCode: code, data: { provider, logical, lookup, hits: hits.map((h) => `${h.workspaceId}:${h.namespace}:${h.jsonPath}`) } });
+    return { provider, namespace: c.namespace, key: c.key, logicalPath: logical, lookup, runtimeMatch, hits, code, message, canEditTranslation: canEdit, canRewriteSource: false };
+  }
+
   private async toCandidate(c: RawCandidate, text: string): Promise<Candidate> {
     const template = c.parts?.map((p) => ("text" in p ? p.text : this.adapter.placeholder(p.name))).join("");
     const vars = c.parts?.flatMap((p) => ("expr" in p ? [p.name] : []));
     let confidence: Candidate["confidence"] = "low";
     let values: Record<string, string> = {};
     let shown = c.text;
+    let translation: TranslationInfo | undefined;
     if (c.kind === "i18n-call") {
-      if (c.key && c.namespace) {
-        const hits = await this.registry.findKey(c.namespace, c.key);
-        values = Object.assign({}, ...hits.map((h) => h.values));
-        const sv = values[this.cfg.sourceLocale] ?? Object.values(values)[0];
-        shown = sv ?? "";
-        const asRe = (v: string) => new RegExp("^" + v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\\\{\\\{[^}]*\\\}\\\}|\\\{[^}]*\\\}/g, ".+?") + "$");
-        if (Object.values(values).some((v) => asRe(normalizeWs(v)).test(text))) confidence = "exact";
-        else if (!text) confidence = "low";
-      }
+      translation = await this.resolveTranslation(c, text);
+      const only = translation.hits.length === 1 ? translation.hits[0] : undefined;
+      values = only?.values ?? {};
+      shown = values[this.cfg.sourceLocale] ?? Object.values(values)[0] ?? "";
+      // translation lookup is independent of source confidence: an on-screen match raises it, a mismatch never blocks editing
+      if (translation.runtimeMatch === "match") confidence = "exact";
     } else if (c.matcher?.test(text)) {
       confidence = c.parts?.some((p) => "expr" in p) ? "pattern" : "exact";
     }
     return {
       id: c.id, kind: c.kind, text: shown, attr: c.attr, key: c.key, namespace: c.namespace, line: c.line, column: c.column + 1,
-      confidence, canExtract: c.canExtract, reason: c.reason, template, vars, values: c.kind === "i18n-call" ? values : undefined,
+      confidence, canExtract: c.canExtract, reason: translation?.message ?? c.reason, template, vars, values: c.kind === "i18n-call" ? values : undefined, translation,
     };
   }
 
@@ -288,7 +345,7 @@ export class AgentService {
         const fp = fingerprint(el.node, code);
         for (const c of cands) {
           if (c.kind === "i18n-call") {
-            if (c.key && c.namespace && hardcoded.length + missingKeys.length < limit * 2 && (await this.registry.findKey(c.namespace, c.key)).length === 0)
+            if (c.key && c.namespace && hardcoded.length + missingKeys.length < limit * 2 && (await this.resolveRef(c.namespace, c.key, c.nsExplicit !== false)).hits.length === 0)
               missingKeys.push({ file: rel, line: c.line, namespace: c.namespace, key: c.key });
           } else if (hardcoded.length < limit) {
             hardcoded.push({ file: rel, line: c.line, text: this.templateOf(c), kind: c.kind, attr: c.attr, canExtract: c.canExtract, ref: { fileId, n, fp }, candidateId: c.id });
@@ -299,6 +356,24 @@ export class AgentService {
     return { hardcoded, missingKeys, parseErrors, truncated: hardcoded.length >= limit };
   }
   private templateOf(c: RawCandidate) { return c.parts?.map((p) => ("text" in p ? p.text : this.adapter.placeholder(p.name))).join("") ?? c.text; }
+
+  /** Read-only translation health report for `localelens doctor --translations`. Never returns file contents beyond key paths. */
+  async translationReport() {
+    await this.reindex();
+    const workspaces = await Promise.all(this.registry.workspaces.map(async (w) => {
+      const files = await this.registry.discover(w);
+      const invalid: string[] = [];
+      for (const f of files) { try { await this.registry.read(w, f.locale, f.namespace); } catch { invalid.push(f.rel); } }
+      return { id: w.id, root: w.root, pattern: w.pattern, locales: [...new Set(files.map((f) => f.locale))].sort(), namespaces: [...new Set(files.map((f) => f.namespace))].sort(), files: files.length, invalid };
+    }));
+    const entries = await this.registry.searchLogical(() => true, 100_000);
+    const byLogical = new Map<string, Set<string>>();
+    for (const e of entries) byLogical.set(e.logical, (byLogical.get(e.logical) ?? new Set()).add(e.workspaceId));
+    const ambiguous = [...byLogical].filter(([, ws]) => ws.size > 1).map(([logical, ws]) => ({ logical, workspaces: [...ws] }));
+    const localeGaps = entries.filter((e) => Object.keys(e.values).length < Math.max(...workspaces.map((w) => w.locales.length), 1)).map((e) => e.logical);
+    const scan = await this.scan(500);
+    return { provider: this.adapter.id, workspaces, ambiguous, missingKeys: scan.missingKeys, parseErrors: scan.parseErrors, localeGaps: [...new Set(localeGaps)] };
+  }
 
   async workspacesInfo() {
     return Promise.all(this.registry.workspaces.map(async (w) => {
@@ -312,7 +387,7 @@ export class AgentService {
 
   async lookup(req: { workspaceId?: string; namespace?: string; key: string }) {
     const ns = req.namespace ?? this.cfg.defaultNamespace;
-    return { namespace: ns, key: req.key, hits: await this.registry.findKey(ns, req.key, req.workspaceId) };
+    return { namespace: ns, key: req.key, hits: (await this.resolveRef(req.namespace, req.key, req.namespace !== undefined, req.workspaceId)).hits };
   }
 
   async suggest(text: string, namespace?: string) {
