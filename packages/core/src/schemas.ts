@@ -26,6 +26,8 @@ export const Candidate = z.object({
   namespace: z.string().optional(),
   line: z.number(),
   column: z.number(),
+  /** Set when the definition lives in a different file than the selected element. */
+  file: z.string().optional(),
   confidence: z.enum(["exact", "pattern", "low"]),
   canExtract: z.boolean(),
   reason: z.string().optional(),

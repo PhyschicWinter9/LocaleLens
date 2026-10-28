@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extract, instrument, load, enumerateCandidates, DEFAULT_ENUM, fingerprint, fileIdOf } from "@localelens/ast-engine";
+import { extract, instrument, load, enumerateCandidates, findConfigDefs, DEFAULT_ENUM, fingerprint, fileIdOf } from "@localelens/ast-engine";
 import { i18nextAdapter } from "@localelens/adapter-i18next";
 import { nextIntlAdapter } from "@localelens/adapter-next-intl";
 import { LlError } from "@localelens/core";
@@ -144,8 +144,25 @@ describe("extract (next-intl)", () => {
     expect(r.code).toContain(`import { useTranslations } from "next-intl";`);
     expect(r.code).toContain(`const t = useTranslations("dashboard");`);
   });
-  it("server component becomes async with getTranslations", () => {
-    const r = run(`export default function P(){\n  return <b>Hello {name}</b>;\n}\n`, 0, "0", { adapter: nextIntlAdapter, key: "hi", isServerComponent: true });
+  it("sync non-route Server Component keeps its signature and uses useTranslations", () => {
+    const r = run(`export function Card(){\n  return <b>Hi</b>;\n}\n`, 0, "0", { adapter: nextIntlAdapter, key: "hi", isServerComponent: true });
+    expect(r.code).toContain(`export function Card()`);
+    expect(r.code).toContain(`const t = useTranslations("dashboard");`);
+    expect(r.diagnostics.join()).toContain("not made async");
+  });
+  it("already-async Server Component uses await getTranslations without a second async", () => {
+    const r = run(`export async function Card(){\n  return <b>Hi</b>;\n}\n`, 0, "0", { adapter: nextIntlAdapter, key: "hi", isServerComponent: true });
+    expect(r.code).toContain(`export async function Card()`);
+    expect(r.code).not.toContain("async async");
+    expect(r.code).toContain(`const t = await getTranslations("dashboard");`);
+  });
+  it("i18next outside app/ without \"use client\" warns that a Server Component may render it", () => {
+    const r = run(`export function Card(){\n  return <b>Hi</b>;\n}\n`, 0, "0", { maybeServer: true });
+    expect(r.diagnostics.join()).toContain("use client");
+    expect(run(`"use client";\nexport function Card(){\n  return <b>Hi</b>;\n}\n`, 0, "0", { maybeServer: true }).diagnostics).toEqual([]);
+  });
+  it("route file (page.tsx) Server Component becomes async with getTranslations", () => {
+    const r = run(`export default function P(){\n  return <b>Hello {name}</b>;\n}\n`, 0, "0", { adapter: nextIntlAdapter, key: "hi", isServerComponent: true, filename: "app/[locale]/page.tsx" });
     expect(r.code).toContain(`export default async function P()`);
     expect(r.code).toContain(`import { getTranslations } from "next-intl/server";`);
     expect(r.code).toContain(`const t = await getTranslations("dashboard");`);
@@ -170,5 +187,15 @@ describe("config provenance (PP-style column labels)", () => {
   it("does not hijack member expressions mixed with text", () => {
     const code = `const a = [{ name: "X" }];\nexport function T() { return <p>Hi {user.name}</p>; }\n`;
     expect(cands(code, 0)[0].kind).toBe("dynamic-text");
+  });
+});
+
+describe("cross-file lookup helpers", () => {
+  it("unresolved {x.label} / t(x.label) carry lookupProp; t() definitions are followed even under t(x.label)", () => {
+    const tbl = `export function T({ columns }) { const { t } = useTranslation(); return <tr><th>{t(columns[0].label)}</th><th>{c.label}</th><th>{t(c.label)}</th></tr>; }\n`;
+    const c = load(tbl, "T.tsx").elements.flatMap((e) => enumerateCandidates(e, tbl, DEFAULT_ENUM));
+    expect(c.filter((x) => x.lookupProp).map((x) => [x.kind, x.lookupProp, !!x.lookupAsKey])).toEqual([["i18n-call", "label", true], ["unsupported", "label", false], ["i18n-call", "label", true]]);
+    const caller = `export function P() { const { t } = useTranslation(); const cols = [{ label: t("common:table.all") }, { label: "masterUser:houseCode" }]; return null; }\n`;
+    expect(findConfigDefs(caller, "P.tsx", "label", true, DEFAULT_ENUM).map((d) => [d.key, d.namespace, d.canExtract])).toEqual([["table.all", "common", false], ["houseCode", "masterUser", false]]);
   });
 });

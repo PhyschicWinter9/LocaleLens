@@ -15,6 +15,8 @@ export interface ExtractInput {
   namespace: string;
   adapter: I18nAdapter;
   isServerComponent: boolean;
+  /** App Router file outside app/ with no way to know whether a Server Component renders it. */
+  maybeServer?: boolean;
   enumOpts: EnumOpts;
 }
 export interface ExtractResult {
@@ -119,7 +121,14 @@ export function extract(inp: ExtractInput): ExtractResult {
   // ---- hook + import ---------------------------------------------------------------------------
   let hookNeedsAsync = false;
   if (needHook) {
-    const plan = adapter.hook({ namespace: inp.namespace, isServerComponent: isServer });
+    // next-intl: `useTranslations` is valid in sync Server Components, so only async components and route files
+    // (page/layout/...: Next supports async there) switch to `await getTranslations`; other components keep their signature.
+    const routeFile = /(^|[\\/])(page|layout|template|default|not-found)\.[jt]sx?$/.test(inp.filename);
+    const serverApi = adapter.id === "next-intl" ? isServer && (comp.node.async || routeFile) : isServer;
+    if (adapter.id === "next-intl" && isServer && !serverApi) diagnostics.push("Server Component: using useTranslations (valid for non-async components); the component was not made async.");
+    if (adapter.id === "i18next" && !isServer && inp.maybeServer && !file.hasUseClient)
+      diagnostics.push("This file has no \"use client\" directive and lives outside app/. If a Server Component renders it, react-i18next hooks will fail: add \"use client\" or extract from a client component.");
+    const plan = adapter.hook({ namespace: inp.namespace, isServerComponent: serverApi });
     if (!plan.ok) throw new LlError(isServer ? "SERVER_COMPONENT_UNSUPPORTED" : "HOOK_CONTEXT_INVALID", plan.reason ?? "Cannot generate a translation binding here.");
     const hookLocal = ensureImport(file.ast, code, s, eol, plan.importSource, plan.importName);
     const fn = comp.node;

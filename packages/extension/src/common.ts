@@ -1,6 +1,6 @@
 import type { Evt, Req, Res } from "@localelens/core";
 
-export const VERSION = "0.5.0";
+export const VERSION = "0.6.0";
 export class RpcError extends Error {
   constructor(public code: string, message: string, public component = "unknown") { super(message); }
 }

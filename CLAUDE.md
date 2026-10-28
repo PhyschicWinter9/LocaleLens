@@ -5,4 +5,4 @@
 - Source edits: magic-string on Babel node ranges (no regex, no regenerate).
 - Status truth lives in docs/STATUS.md. Do not claim a feature there unless a test exercises it.
 - CLI tests spawn `packages/cli/dist/bin.js`: run `bun run build` before `vitest` after CLI changes.
-- Config provenance (`addProvenance` in ast-engine/candidates.ts) is same-file only; cross-file prop flow is intentionally not guessed.
+- Config provenance (`configDefs` in ast-engine/candidates.ts): same-file at enumerate time; otherwise the agent searches other source files by property name and keeps only definitions whose value matches the on-screen text (`crossFileDefs`). Import graphs are never followed.

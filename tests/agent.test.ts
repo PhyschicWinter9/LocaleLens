@@ -226,3 +226,24 @@ describe("translation exchange over HTTP", () => {
     expect((await call("/translations/import/commit", { importId: "nope" })).json.error.code).toBe("OPERATION_EXPIRED");
   });
 });
+
+describe("cross-file config provenance", () => {
+  const TABLE = `export function Table({ columns }) {\n  return <tr>{columns.map((column) => <th key={column.id}>{column.label}</th>)}</tr>;\n}\n`;
+  const CALLER = `export function Page() {\n  const { t } = useTranslation();\n  const columns = [{ id: "a", label: "Plain name" }, { id: "e", label: t("common:existing") }];\n  return <Table columns={columns} />;\n}\n`;
+  const resolveTh = async (text: string) => {
+    put("src/Table.tsx", TABLE); put("src/Page.tsx", CALLER); await agent.service.reindex();
+    const code = instrument(TABLE, "src/Table.tsx", "src/Table.tsx")!.code;
+    const m = /data-ll="([0-9a-f]{8}):(\d+):([0-9a-f]{8})"/.exec(code)!;
+    return (await call("/source/resolve", { ref: { fileId: m[1], n: +m[2], fp: m[3] }, text })).json;
+  };
+  it("finds the definition in another file by property name and on-screen text", async () => {
+    const r = await resolveTh("Hello");
+    const hit = r.candidates.find((c: any) => c.file === "src/Page.tsx");
+    expect(hit).toMatchObject({ kind: "i18n-call", key: "existing", namespace: "common", confidence: "exact", canExtract: false });
+    expect(r.candidates.filter((c: any) => c.file).length).toBe(1);
+  });
+  it("matches literal definitions too, and ignores text that matches nothing", async () => {
+    expect((await resolveTh("Plain name")).candidates.find((c: any) => c.file)).toMatchObject({ kind: "string-expression", canExtract: false });
+    expect((await resolveTh("Nothing like this")).candidates.some((c: any) => c.file)).toBe(false);
+  });
+});

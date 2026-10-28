@@ -4,7 +4,7 @@ import {
   LlError, Logger, randomId, shortHash, toPosix, unifiedDiff, resolveInside, isInside,
   type LocaleLensConfig, type PreviewReq, type PreviewRes, type ResolveRes, type Candidate, type I18nAdapter,
 } from "@localelens/core";
-import { DEFAULT_ENUM, enumerateCandidates, extract, fileIdOf, fingerprint, load, normalizeWs, suggestKey, SUPPORTED_EXT, type EnumOpts, type RawCandidate } from "@localelens/ast-engine";
+import { DEFAULT_ENUM, enumerateCandidates, extract, fileIdOf, findConfigDefs, fingerprint, load, normalizeWs, suggestKey, SUPPORTED_EXT, type EnumOpts, type RawCandidate } from "@localelens/ast-engine";
 import { FileWriter, type PlannedFile } from "@localelens/file-writer";
 import { LocaleRegistry, validatePlaceholders } from "@localelens/locale-registry";
 import { createI18nextAdapter } from "@localelens/adapter-i18next";
@@ -84,6 +84,14 @@ export class AgentService {
       const base = await this.toCandidate(c, text);
       out.push(base);
     }
+    // `x.label` defined in another file: keep only definitions whose value matches what is on screen
+    for (const r of raws) {
+      if (!r.lookupProp) continue;
+      for (const d of await this.crossFileDefs(r.lookupProp, !!r.lookupAsKey, rel)) {
+        const cand = await this.toCandidate({ ...d.c, id: `x${out.length}` }, text);
+        if (cand.confidence !== "low") out.push({ ...cand, file: d.file, reason: `Defined in ${d.file}:${cand.line} (\`${r.lookupProp}\`), matched by on-screen text` });
+      }
+    }
     const attrWanted = req.attr;
     out.sort((a, b) => rank(b, attrWanted) - rank(a, attrWanted));
     const good = out.filter((c) => c.confidence !== "low" && (!attrWanted || c.attr === attrWanted));
@@ -107,6 +115,23 @@ export class AgentService {
       extractBlocked = "Server Component with react-i18next: automatic extraction unavailable (hooks cannot run on the server). Editing existing translations still works.";
     this.log.info("source.resolve.completed", { data: { file: rel, candidates: out.length, ambiguous } });
     return { file: rel, candidates: out, ambiguous, suggestedWorkspaceId: ws?.id, suggestedNamespace: ns, suggestedKey, extractBlocked };
+  }
+
+  /**
+   * Config definitions of `prop` in every other source file. ponytail: re-reads files per click (no index);
+   * add a mtime-keyed cache if sourceRoots reach thousands of files.
+   */
+  private async crossFileDefs(prop: string, asKey: boolean, except: string) {
+    const out: { c: Omit<RawCandidate, "id">; file: string }[] = [];
+    const re = new RegExp(`(^|[\\s{,"'])${prop.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}["']?\\s*:`);
+    for (const rel of this.fileIndex.values()) {
+      if (rel === except || out.length >= 100) continue;
+      let code: string;
+      try { code = await fsp.readFile(resolveInside(this.root, rel), "utf8"); } catch { continue; }
+      if (!re.test(code)) continue;
+      try { for (const c of findConfigDefs(code, rel, prop, asKey, this.enumOpts)) out.push({ c, file: rel }); } catch { /* unparsable file: skip */ }
+    }
+    return out;
   }
 
   private suggestNamespace(ws: ReturnType<LocaleRegistry["suggestWorkspace"]>, rel: string): string {
@@ -154,7 +179,7 @@ export class AgentService {
       const code = await fsp.readFile(resolveInside(this.root, rel), "utf8");
       const r = extract({
         code, filename: rel, n: req.source.ref.n, fp: req.source.ref.fp, candidateId: req.source.candidateId,
-        key: req.key, namespace: req.namespace, adapter: this.adapter, isServerComponent: this.isServerFile(rel), enumOpts: this.enumOpts,
+        key: req.key, namespace: req.namespace, adapter: this.adapter, isServerComponent: this.isServerFile(rel), maybeServer: /^next-(app|hybrid)$/.test(this.cfg.framework) && !this.isServerFile(rel), enumOpts: this.enumOpts,
       });
       for (const d of r.diagnostics) diagnostics.push({ level: "warn", message: d });
       expectedVars = r.vars;

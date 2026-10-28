@@ -1,12 +1,12 @@
 # Implementation status
 
-Last full verification: 2026-10-23, Windows 10, Node 24.11, Bun 1.4.3, Chromium 1248 (Playwright, headless, extension loaded), Next 16.4.2, Vite 8, TypeScript 7, all dependencies at latest majors (i18next 26, react-i18next 17 re-verified 2026-10-28: 116 unit, 30 E2E).
+Last full verification: 2026-10-28, Windows 10, Node 24.11, Bun 1.4.3, Chromium 1248 (Playwright, headless, extension loaded), Next 16.4.2, Vite 8, TypeScript 7, all dependencies at latest majors (i18next 26, react-i18next 17 re-verified 2026-10-28: 116 unit, 30 E2E).
 
 | Check | Result |
 |---|---|
 | `bun run build` (all packages + extension) | pass |
 | `bun run typecheck` (TS 7, strict) | pass |
-| Unit + integration (`vitest`, 8 files) | **116 / 116 pass** (2026-10-28) |
+| Unit + integration (`vitest`, 8 files) | **122 / 122 pass** |
 | Browser E2E (`playwright`, real Chromium + extension + dev servers) | **30 / 30 pass** |
 | `scripts/pack.mjs` + `scripts/verify-install.mjs` (fresh project, tarballs only), run once each for **npm 11, pnpm 10, bun 1.4** | **33 / 33 checks pass** (11 per package manager: install, lockfile detection, tarball install, `init` dry-run/apply, install hint, `doctor`, TypeScript typings of the published plugin, live dev-server instrumentation, clean production build) |
 | TODO/FIXME in source | 0 |
@@ -41,14 +41,14 @@ The CI workflow (`.github/workflows/ci.yml`) has **not been run** on a CI machin
 
 - **Compiler instrumentation** (Vite plugin; Next config wrapper with Turbopack rules + webpack loader), dev-only.
 - **Source resolution** by `fileId:n:fingerprint`, with candidates for JSX text runs, dynamic text with simple expressions, string attributes, ternary/logical string leaves, template literals, fragments, and existing `t()` calls (alias-aware, namespace/`keyPrefix`-aware).
-- **AST extraction** (magic-string edits, formatting + EOL preserved, post-transform re-parse and re-resolve): import, hook, call, interpolation; next-intl Server Components become `async` + `getTranslations`.
+- **AST extraction** (magic-string edits, formatting + EOL preserved, post-transform re-parse and re-resolve): import, hook, call, interpolation; next-intl: route files (page/layout/...) and already-async components use `await getTranslations`; other sync Server Components use `useTranslations` without changing their signature; react-i18next in `app/` Server Components is refused, and a no-directive file outside `app/` gets a warning.
 - **Locale registry**: independent roots, patterns (`{locale}/{ns}.json`, `{locale}.json`, ns-in-key), nested/flat detection, collision + shape-conflict detection, format-preserving JSON/JSONC edits, source routing.
 - **Safe writer**: hash preconditions, per-file locks, journal, backups, rollback, undo, crash recovery.
 - **Agent**: authenticated loopback API (docs/API.md), structured logs, diagnostics, single-instance guard.
 - **Extension**: popup, DevTools panel (Overview, Inspector, Translations, Hardcoded, Missing Keys, Changes/Diff, Diagnostics, Settings), end-to-end self-check, light/dark, narrow layouts.
 - **Translator exchange**: Excel/zip export with embedded base snapshot, import with three-way merge and per-conflict resolution, rename suggestions (`diffSnapshots`), formula/zip-bomb/traversal/macro protections.
 - **CLI**: `init` (diff + approval + backups; patches Vite and Next configs by AST), `uninstall` (exact AST inverse of `init`; keeps translations, backups and dependencies), `dev`, `doctor` (`--mui` reports MUI packages), `scan`, `check`, `diff`, `undo`, `export`, `import`.
-- **Config provenance** (same file only): `{col.label}` and `t(col.label)` resolve to `label: "..."` / `label: t("ns:key")` definitions; verified on 7 columns of PP `MatingAssignmentTable.tsx` (scan only, original untouched). Ambiguity is left to the existing candidate picker.
+- **Config provenance** (same file, then a project-wide search by property name filtered by on-screen text; no import graph): `{col.label}` and `t(col.label)` resolve to `label: "..."` / `label: t("ns:key")` definitions; verified on 7 columns of PP `MatingAssignmentTable.tsx` (scan only, original untouched). Ambiguity is left to the existing candidate picker.
 
 ## Not verified
 

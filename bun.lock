@@ -84,7 +84,7 @@
     },
     "packages/adapter-i18next": {
       "name": "@localelens/adapter-i18next",
-      "version": "0.5.0",
+      "version": "0.6.0",
       "dependencies": {
         "zod": "^4.6.7",
       },
@@ -94,7 +94,7 @@
     },
     "packages/adapter-next-intl": {
       "name": "@localelens/adapter-next-intl",
-      "version": "0.5.0",
+      "version": "0.6.0",
       "dependencies": {
         "zod": "^4.6.7",
       },
@@ -104,7 +104,7 @@
     },
     "packages/ast-engine": {
       "name": "@localelens/ast-engine",
-      "version": "0.5.0",
+      "version": "0.6.0",
       "dependencies": {
         "@babel/parser": "^8.0.7",
         "@babel/traverse": "^8.0.7",
@@ -118,7 +118,7 @@
     },
     "packages/cli": {
       "name": "localelens",
-      "version": "0.5.2",
+      "version": "0.6.0",
       "bin": {
         "localelens": "dist/bin.js",
       },
@@ -142,14 +142,14 @@
     },
     "packages/core": {
       "name": "@localelens/core",
-      "version": "0.5.0",
+      "version": "0.6.0",
       "dependencies": {
         "zod": "^4.6.7",
       },
     },
     "packages/dev-agent": {
       "name": "@localelens/dev-agent",
-      "version": "0.5.0",
+      "version": "0.6.0",
       "dependencies": {
         "@babel/parser": "^8.0.7",
         "@babel/traverse": "^8.0.7",
@@ -172,14 +172,14 @@
     },
     "packages/extension": {
       "name": "@localelens/extension",
-      "version": "0.5.0",
+      "version": "0.6.0",
       "dependencies": {
         "@localelens/core": "workspace:*",
       },
     },
     "packages/file-writer": {
       "name": "@localelens/file-writer",
-      "version": "0.5.0",
+      "version": "0.6.0",
       "dependencies": {
         "zod": "^4.6.7",
       },
@@ -189,7 +189,7 @@
     },
     "packages/locale-registry": {
       "name": "@localelens/locale-registry",
-      "version": "0.5.0",
+      "version": "0.6.0",
       "dependencies": {
         "jsonc-parser": "^3.3.1",
         "zod": "^4.6.7",
@@ -201,7 +201,7 @@
     },
     "packages/next": {
       "name": "@localelens/next",
-      "version": "0.5.2",
+      "version": "0.6.0",
       "dependencies": {
         "zod": "^4.6.7",
       },
@@ -212,7 +212,7 @@
     },
     "packages/translation-excel": {
       "name": "@localelens/translation-excel",
-      "version": "0.5.0",
+      "version": "0.6.0",
       "dependencies": {
         "exceljs": "^4.4.0",
         "fflate": "^0.8.3",
@@ -224,7 +224,7 @@
     },
     "packages/vite": {
       "name": "@localelens/vite",
-      "version": "0.5.2",
+      "version": "0.6.0",
       "dependencies": {
         "@babel/parser": "^8.0.7",
         "@babel/traverse": "^8.0.7",

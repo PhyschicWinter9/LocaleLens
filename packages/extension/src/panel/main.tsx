@@ -30,6 +30,7 @@ function App() {
   const [res, setRes] = useState<any>(null);
   const [resState, setResState] = useState<string | undefined>();
   const [resErr, setResErr] = useState("");
+  const [valueHits, setValueHits] = useState<any[]>([]);
   const [candId, setCandId] = useState("");
   const [form, setForm] = useState<Form | null>(null);
   const [preview, setPreview] = useState<any>(null);
@@ -59,11 +60,21 @@ function App() {
     api("GET", "/workspaces").then((d) => setWorkspaces(d.workspaces)).catch(() => {});
   }, [conn?.connected, conn?.project]);
 
+  // Unmapped text (props from another file, third-party components): find translations whose value equals it. Candidates only, never auto-applied.
+  const valueLookup = async (text: string) => {
+    const want = text.replace(/\s+/g, " ").trim();
+    if (!want) return;
+    try {
+      const d = await api("GET", "/translations/list");
+      setValueHits((d.entries ?? []).filter((e: any) => Object.values(e.values).some((v) => String(v).replace(/\s+/g, " ").trim() === want)).slice(0, 20));
+    } catch { /* lookup is a best-effort hint */ }
+  };
+
   // -------------------------------------------------- selection from the page
   const resolve = useCallback(async (refStr: string | null, text: string, attr?: string, preferCand?: string, forced?: Form["mode"]) => {
-    setErr(""); setResErr(""); setRes(null); setForm(null); setPreview(null); setResult(null); setCandId("");
+    setErr(""); setResErr(""); setValueHits([]); setRes(null); setForm(null); setPreview(null); setResult(null); setCandId("");
     const ref = parseRef(refStr);
-    if (!ref) { setResState("fail"); setResErr("This text has no source mapping (not compiled by the LocaleLens plugin: production build, third-party component, or the page needs a reload after starting `localelens dev`)."); return; }
+    if (!ref) { setResState("fail"); setResErr("This text has no source mapping (not compiled by the LocaleLens plugin: production build, third-party component, or the page needs a reload after starting `localelens dev`)."); void valueLookup(text); return; }
     setResState("resolving");
     plog("INFO", "source.resolve.started", { data: { n: ref.n } });
     try {
@@ -225,6 +236,8 @@ function App() {
                     {res && <span class="mono">{res.file}{cand ? `:${cand.line}` : ""}</span>}
                     {resState === "resolving" && <span>resolving…</span>}</div>
                   {resErr && <div class="alert err" role="alert">{resErr}</div>}
+                  {valueHits.length > 0 && <div class="alert warn">Translations with this exact text (not verified to be the one on screen):
+                    {valueHits.map((e) => <div key={e.workspaceId + e.namespace + e.key}><button onClick={() => loadFromTranslation(e)}><span class="mono">{e.namespace}:{e.key}</span></button></div>)}</div>}
                   {res?.extractBlocked && <div class="alert warn">{res.extractBlocked}</div>}
                   {res?.ambiguous && <div class="alert warn">Several occurrences in this element match. Pick the right one; LocaleLens will not guess.</div>}
                   {res && <div class="stack" role="radiogroup" aria-label="Source occurrences">{res.candidates.map((c: any) => (
@@ -232,7 +245,7 @@ function App() {
                       onClick={() => choose(res, c, parseRef(sel.ref), sel.text, sel.attr)} onKeyDown={(k) => (k.key === "Enter" || k.key === " ") && choose(res, c, parseRef(sel.ref), sel.text, sel.attr)}>
                       <span class={"badge " + (c.confidence === "exact" ? "ok" : c.confidence === "pattern" ? "" : "warn")}>{c.confidence}</span>
                       <div><div>{c.kind === "i18n-call" ? <><span class="mono">{c.namespace}:{c.key}</span> <span class="muted">→ {c.text || "(no value)"}</span></> : (c.template ?? c.text)}</div>
-                        <div class="why">{c.kind}{c.attr ? ` · ${c.attr}` : ""} · line {c.line}{c.kind === "i18n-call" ? " · already translated" : c.canExtract ? " · extractable" : ""}{c.reason ? ` · ${c.reason}` : ""}</div></div>
+                        <div class="why">{c.kind}{c.attr ? ` · ${c.attr}` : ""} · {c.file ? `${c.file}:` : "line "}{c.line}{c.kind === "i18n-call" ? " · already translated" : c.canExtract ? " · extractable" : ""}{c.reason ? ` · ${c.reason}` : ""}</div></div>
                     </div>))}</div>}
                   <div class="row"><button onClick={openEditor} disabled={!res}>Open source in editor</button></div>
                 </>}
@@ -297,7 +310,7 @@ function FormCard({ form, setForm, workspaces, locales, nsLocked, busy, onPrevie
       <div class="row">
         <label class="grow">Workspace<select value={form.workspaceId} onChange={(e) => set({ workspaceId: (e.target as HTMLSelectElement).value })}>
           {workspaces.map((w: any) => <option key={w.id} value={w.id} disabled={!w.writable}>{w.id} — {w.root}{w.writable ? "" : " (read-only)"}</option>)}</select></label>
-        <label style="width:130px">Namespace<input class="mono" value={nsLocked ?? form.namespace} disabled={!!nsLocked} onInput={(e) => set({ namespace: (e.target as HTMLInputElement).value })} /></label>
+        <label style="width:130px">Namespace<datalist id="ll-ns">{(ws?.namespaces ?? []).map((n: string) => <option key={n} value={n} />)}</datalist><input list="ll-ns" class="mono" value={nsLocked ?? form.namespace} disabled={!!nsLocked} onInput={(e) => set({ namespace: (e.target as HTMLInputElement).value })} /></label>
       </div>
       <label>Key<div class="row"><input class="mono grow" value={form.key} aria-invalid={!keyOk} onInput={(e) => set({ key: (e.target as HTMLInputElement).value })} readOnly={form.mode === "edit" && form.existing} />
         {form.mode === "extract" && <button type="button" onClick={onSuggest}>Suggest</button>}</div></label>

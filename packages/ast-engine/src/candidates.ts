@@ -1,5 +1,5 @@
 import type * as t from "@babel/types";
-import type { NodePath } from "./parse.ts";
+import { parseSource, traverse, type NodePath } from "./parse.ts";
 
 export const TRANSLATABLE_ATTRS = new Set(["placeholder", "title", "alt", "aria-label", "aria-description", "aria-placeholder", "label"]);
 
@@ -22,6 +22,9 @@ export interface RawCandidate {
   range?: [number, number];
   replace?: "child-run" | "attr-value" | "node";
   matcher: RegExp | null;
+  /** Unresolved `x.<prop>` reference: the agent searches other files for `<prop>: ...` definitions. */
+  lookupProp?: string;
+  lookupAsKey?: boolean;
 }
 
 export interface TBinding { name: string; namespace: string | null; keyPrefix?: string }
@@ -192,21 +195,26 @@ function i18nCall(path: NodePath, call: t.CallExpression, opts: EnumOpts): Omit<
 /**
  * Config provenance: `{column.label}` / `t(column.label)` renders text defined elsewhere in the same file as
  * `{ label: "..." }` or `{ label: t("ns:key") }`. Emit one candidate per definition; runtime text matching ranks them.
- * Cross-file definitions (props from a caller) are not followed.
+ * When none exist here the candidate carries `lookupProp` so the agent can search other files (see findConfigDefs).
  */
+const memberProp = (e: t.Node) => (e.type === "MemberExpression" && !e.computed && e.property.type === "Identifier" ? e.property.name : null);
+const outerFn = (q: NodePath) => { let f = q.getFunctionParent(); for (let g = f?.getFunctionParent(); g; g = f.getFunctionParent()) f = g; return f; };
+
 function addProvenance(el: NodePath<t.JSXElement>, expr: t.Node, asKey: boolean, opts: EnumOpts, push: (c: Omit<RawCandidate, "id">) => void): boolean {
-  if (expr.type !== "MemberExpression" || expr.computed || expr.property.type !== "Identifier") return false;
-  const prop = expr.property.name;
-  const outerFn = (q: NodePath) => { let f = q.getFunctionParent(); for (let g = f?.getFunctionParent(); g; g = f.getFunctionParent()) f = g; return f; };
-  const elFn = outerFn(el);
+  const prop = memberProp(expr);
+  return !!prop && configDefs(el.scope.getProgramParent().path, prop, asKey, opts, outerFn(el), push);
+}
+
+/** Emit a candidate per `prop: ...` object property under `program`. `elFn` (the element's outermost function) gates extractability; null = other file. */
+function configDefs(program: NodePath, prop: string, asKey: boolean, opts: EnumOpts, elFn: NodePath | null, push: (c: Omit<RawCandidate, "id">) => void): boolean {
   let found = false;
-  el.scope.getProgramParent().path.traverse({
+  program.traverse({
     ObjectProperty(p) {
       const k = p.node.key;
       if (p.node.computed || !((k.type === "Identifier" && k.name === prop) || (k.type === "StringLiteral" && k.value === prop))) return;
       const v = p.node.value, loc = v.loc!.start;
       const where = `Defined in config at line ${loc.line} (\`${prop}\`)`;
-      if (v.type === "CallExpression" && !asKey) {
+      if (v.type === "CallExpression") {
         const c = i18nCall(p, v, opts);
         if (c?.key) { push({ ...c, reason: where }); found = true; }
         return;
@@ -230,6 +238,14 @@ function addProvenance(el: NodePath<t.JSXElement>, expr: t.Node, asKey: boolean,
     },
   });
   return found;
+}
+
+/** Config definitions of `prop` in another file (no JSX element involved). Never extractable. */
+export function findConfigDefs(code: string, filename: string, prop: string, asKey: boolean, opts: EnumOpts): Omit<RawCandidate, "id">[] {
+  const out: Omit<RawCandidate, "id">[] = [];
+  const ast = parseSource(code, filename);
+  traverse(ast, { Program(p) { configDefs(p, prop, asKey, opts, null, (c) => out.push(c)); p.stop(); } });
+  return out;
 }
 
 /** Collect JSX children, looking through fragments. */
@@ -328,7 +344,7 @@ export function enumerateCandidates(el: NodePath<t.JSXElement>, code: string, op
           flush();
           const a0 = e.arguments[0];
           if (!call.key && a0 && addProvenance(el, a0, true, opts, push)) continue;
-          push(call);
+          push(!call.key && a0 && memberProp(a0) ? { ...call, lookupProp: memberProp(a0)!, lookupAsKey: true } : call);
           continue;
         }
       }
@@ -341,6 +357,9 @@ export function enumerateCandidates(el: NodePath<t.JSXElement>, code: string, op
         const before = out.length;
         if (addProvenance(el, e, false, opts, push)) { flush(); continue; }
         out.length = before;
+        flush();
+        push({ kind: "unsupported", text: "", line: e.loc!.start.line, column: e.loc!.start.column, canExtract: false, reason: "Text comes from a value defined elsewhere", matcher: null, lookupProp: memberProp(e)! });
+        continue;
       }
       run.push({ node: c, kind: isSimpleExpr(e) ? "expr" : "complex", raw: code.slice(e.start!, e.end!) });
       continue;
