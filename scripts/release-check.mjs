@@ -18,11 +18,7 @@ export const SECRET = /-----BEGIN [A-Z ]*PRIVATE KEY-----|ghp_[A-Za-z0-9]{36}|gi
 if (import.meta.filename === process.argv[1]) {
   // 1. versions
   const version = json("packages/cli/package.json").version;
-  for (const d of fs.readdirSync(path.join(root, "packages"))) {
-    const p = `packages/${d}/package.json`;
-    if (fs.existsSync(path.join(root, p))) check(json(p).version === version, `${p} version ${json(p).version} != ${version}`);
-  }
-  check(json("package.json").version === version, "root package.json version out of sync");
+  for (const d of Object.keys(PUBLISHED)) check(json(`packages/${d}/package.json`).version === version, `packages/${d} version out of sync`);
   const manifest = json("packages/extension/manifest.json");
   check(manifest.version === version, `manifest.json version ${manifest.version} != ${version}`);
   for (const p of ["packages/dev-agent/src/server.ts", "packages/extension/src/common.ts"]) check(read(p).includes(`VERSION = "${version}"`), `${p} VERSION out of sync`);

@@ -1,13 +1,13 @@
-// After `changeset version`: make every workspace package, the extension manifest and the VERSION constants match the CLI version.
+// After `changeset version`: make the extension manifest and the VERSION constants match the CLI version.
 import fs from "node:fs";
 import path from "node:path";
 
 const root = path.resolve(import.meta.dirname, "..");
 const read = (p) => fs.readFileSync(path.join(root, p), "utf8");
 const version = JSON.parse(read("packages/cli/package.json")).version;
-const pkgs = ["package.json", ...fs.readdirSync(path.join(root, "packages")).map((d) => `packages/${d}/package.json`).filter((p) => fs.existsSync(path.join(root, p)))];
-for (const p of [...pkgs, "packages/extension/manifest.json"]) {
-  const j = JSON.parse(read(p));
+// Private workspace packages keep their own version: changesets/action reads a CHANGELOG.md for every package whose package.json changed.
+{
+  const p = "packages/extension/manifest.json", j = JSON.parse(read(p));
   j.version = version;
   fs.writeFileSync(path.join(root, p), JSON.stringify(j, null, 2) + "\n");
 }

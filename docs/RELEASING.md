@@ -12,7 +12,7 @@ Internal tool: packages go to **GitHub Packages** (private), assets to **GitHub 
 | `.github/dependabot.yml` | weekly | grouped minor/patch PRs, separate major PRs, Actions updates |
 | `scripts/release-check.mjs` | CI + release | versions in sync, MV3 manifest, only the 3 designated packages publishable, `publishConfig`, tracked-file and `npm pack` allowlists, secret scan of tarball files |
 | `scripts/release-artifacts.mjs` | CI + release | extension zip scan, `localelens-extension-vX.zip`, `localelens-packages-vX.zip`, `checksums.sha256`, `release-manifest.json`; `--verify` re-checks hashes |
-| `scripts/sync-versions.mjs` | `bun run version-packages` | copies the CLI version to every workspace package, `manifest.json` and both `VERSION` constants |
+| `scripts/sync-versions.mjs` | `bun run version-packages` | copies the CLI version to `manifest.json` and both `VERSION` constants (private packages keep their own version: the Changesets action needs a CHANGELOG.md for every package.json that changes) |
 
 No linter is configured in this repo; strict TypeScript is the static check. Add ESLint/Biome as its own change if wanted.
 
