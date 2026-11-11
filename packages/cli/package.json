@@ -4,8 +4,8 @@
   "type": "module",
   "main": "dist/index.js",
   "dependencies": {
-    "@babel/parser": "^8.0.7",
-    "@babel/traverse": "^8.0.7",
+    "@babel/parser": "^8.1.0",
+    "@babel/traverse": "^8.1.0",
     "@babel/types": "^8.0.6",
     "magic-string": "^1.4.3",
     "jsonc-parser": "^3.3.1",
